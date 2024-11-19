@@ -39,6 +39,17 @@ type Token struct {
 	Value string
 }
 
+// String makes Token implement the Stringer interface.
+func (t Token) String() string {
+	s, ok := TokenTypeString[t.Type]
+
+	if !ok {
+		return TokenTypeString[TokenType_Undefined]
+	}
+
+	return s
+}
+
 // NewLexer returns a new Lexer configured to read from a slice
 // []rune value of the input string.
 func NewLexer(input string) *Lexer {
