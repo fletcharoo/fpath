@@ -49,7 +49,8 @@ func (p *Parser) Parse() (expr Expr, err error) {
 // parseUndefined parses an undefined token.
 // parseUndefined implements parseFunc.
 func parseUndefined(tok lexer.Token) (expr Expr, err error) {
-	return nil, fmt.Errorf("undefined token: %v", tok.Value)
+	err = fmt.Errorf("undefined token: %v", tok.Value)
+	return
 }
 
 // parseNumber parses a number token.

@@ -68,7 +68,7 @@ func Test_isLabelRune(t *testing.T) {
 func Test_Lexer_getRune(t *testing.T) {
 	input := "hello world"
 	expectedRunes := []rune{'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'}
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	for i, expected := range expectedRunes {
 		r, err := lexer.getRune()
@@ -86,7 +86,7 @@ func Test_Lexer_getRune(t *testing.T) {
 func Test_Lexer_getRune_EOF(t *testing.T) {
 	input := "h"
 	expected := 'h'
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	r, err := lexer.getRune()
 
@@ -108,7 +108,7 @@ func Test_Lexer_getRune_EOF(t *testing.T) {
 func Test_Lexer_peekRune(t *testing.T) {
 	input := "hello world"
 	expected := 'h'
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	for i := 0; i < 10; i++ {
 		r, err := lexer.peekRune()
@@ -126,7 +126,7 @@ func Test_Lexer_peekRune(t *testing.T) {
 func Test_Lexer_peekRune_EOF(t *testing.T) {
 	input := "h"
 	expected := 'h'
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	r, err := lexer.getRune()
 
@@ -184,7 +184,7 @@ func Test_Lexer_getToken(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			lexer := NewLexer(tc.input)
+			lexer := New(tc.input)
 
 			for _, expected := range tc.expectedTokens {
 				tok, err := lexer.GetToken()
@@ -207,7 +207,7 @@ func Test_Lexer_getToken_EOF(t *testing.T) {
 		Type:  TokenType_Number,
 		Value: "123",
 	}
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	tok, err := lexer.GetToken()
 
@@ -232,7 +232,7 @@ func Test_Lexer_getToken_InvalidRune(t *testing.T) {
 		Type:  TokenType_Number,
 		Value: "123",
 	}
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	tok, err := lexer.GetToken()
 
@@ -264,7 +264,7 @@ func Test_Lexer_peekToken(t *testing.T) {
 	secondExpected := Token{
 		Type: TokenType_Plus,
 	}
-	lexer := NewLexer(input)
+	lexer := New(input)
 	shouldBreak := false
 
 	for i := 0; i < 100; i++ {
@@ -334,7 +334,7 @@ func Test_Lexer_peekToken(t *testing.T) {
 
 func Test_Lexer_getTokenStringLiteral_UnexpectedEOF(t *testing.T) {
 	input := `"hello `
-	lexer := NewLexer(input)
+	lexer := New(input)
 
 	_, err := lexer.GetToken()
 

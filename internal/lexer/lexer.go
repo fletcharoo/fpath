@@ -50,9 +50,9 @@ func (t Token) String() string {
 	return s
 }
 
-// NewLexer returns a new Lexer configured to read from a slice
+// New returns a new Lexer configured to read from a slice
 // []rune value of the input string.
-func NewLexer(input string) *Lexer {
+func New(input string) *Lexer {
 	return &Lexer{
 		input: []rune(input),
 	}

@@ -1,0 +1,10 @@
+
+[Test_Eval/number - 1]
+decimal.Decimal{
+    value: &big.Int{
+        neg: false,
+        abs: {0x2},
+    },
+    exp: 0,
+}
+---
