@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/shopspring/decimal"
@@ -9,7 +10,10 @@ import (
 const (
 	ExprType_Undefined = iota
 	ExprType_Number
+	ExprType_Add
 )
+
+var errInvalidDecode = errors.New("cannot decode expression")
 
 // Expr represents an evaluable expression.
 type Expr interface {
@@ -19,8 +23,11 @@ type Expr interface {
 	Decode() (any, error)
 }
 
-func (ExprNumber) Type() int      { return ExprType_Number }
-func (ExprNumber) String() string { return "Numer" }
+func (ExprNumber) Type() int { return ExprType_Number }
+func (ExprAdd) Type() int    { return ExprType_Add }
+
+func (ExprNumber) String() string { return "Number" }
+func (ExprAdd) String() string    { return "Add" }
 
 // ExprNumber represents a number literal.
 type ExprNumber struct {
@@ -35,4 +42,15 @@ func (e ExprNumber) Decode() (result any, err error) {
 	}
 
 	return result, nil
+}
+
+// ExprAdd represents an operation that adds two expressions together.
+type ExprAdd struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprAdd) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
 }

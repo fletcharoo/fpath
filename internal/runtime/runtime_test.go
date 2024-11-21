@@ -24,6 +24,9 @@ func Test_Eval(t *testing.T) {
 		"number": {
 			query: "2",
 		},
+		"add": {
+			query: "2 + 3",
+		},
 	}
 
 	for name, tc := range testCases {

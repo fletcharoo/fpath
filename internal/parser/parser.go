@@ -1,20 +1,30 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
+	"io"
 
 	"github.com/fletcharoo/fpath/internal/lexer"
 	"github.com/shopspring/decimal"
 )
 
-type parseFunc func(lexer.Token) (Expr, error)
+type (
+	parseFunc    func(lexer.Token) (Expr, error)
+	operatorFunc func(Expr, Expr) Expr
+)
 
 var parseMap map[int]parseFunc
+var operatorMap map[int]operatorFunc
 
 func init() {
 	parseMap = map[int]parseFunc{
 		ExprType_Undefined: parseUndefined,
 		ExprType_Number:    parseNumber,
+	}
+
+	operatorMap = map[int]operatorFunc{
+		lexer.TokenType_Plus: operatorAdd,
 	}
 }
 
@@ -43,7 +53,43 @@ func (p *Parser) Parse() (expr Expr, err error) {
 		err = fmt.Errorf("unrecognizable token: %s", tok)
 	}
 
-	return f(tok)
+	expr, err = f(tok)
+	if err != nil {
+		err = fmt.Errorf("failed to parse: %w", err)
+		return
+	}
+
+	return p.wrapOperation(expr)
+}
+
+// wrapOperation checks if the given expression is part of an operation and
+// wraps it if so.
+func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
+	tok, err := p.lexer.PeekToken()
+
+	if errors.Is(io.EOF, err) {
+		return expr, nil
+	}
+
+	if err != nil {
+		err = fmt.Errorf("failed to peek token: %w", err)
+		return
+	}
+
+	f, ok := operatorMap[tok.Type]
+	if !ok {
+		return expr, nil
+	}
+
+	// This skips the peeked token.
+	p.lexer.GetToken()
+
+	expr2, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse the second expression: %w", err)
+	}
+
+	return f(expr, expr2), nil
 }
 
 // parseUndefined parses an undefined token.
@@ -63,4 +109,13 @@ func parseNumber(tok lexer.Token) (expr Expr, err error) {
 	}
 
 	return exprNumber, nil
+}
+
+// operatorAdd wraps two expressions in an add expression.
+// operatorAdd implements operatorFunc.
+func operatorAdd(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprAdd{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
 }
