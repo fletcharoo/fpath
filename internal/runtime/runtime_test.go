@@ -31,7 +31,7 @@ func Test_Eval(t *testing.T) {
 			lex := lexer.New(tc.query)
 			expr, err := parser.New(lex).Parse()
 			if err != nil {
-				t.Fatalf("Unexpected parser error: %w", err)
+				t.Fatalf("Unexpected parser error: %s", err)
 			}
 
 			result, err := runtime.Eval(expr, err)
@@ -39,7 +39,12 @@ func Test_Eval(t *testing.T) {
 				t.Fatalf("Unexpected runtime error: %s", err)
 			}
 
-			snaps.MatchSnapshot(t, result)
+			resultDecoded, err := result.Decode()
+			if err != nil {
+				t.Fatalf("Failed to decode result: %s", err)
+			}
+
+			snaps.MatchSnapshot(t, resultDecoded)
 		})
 	}
 }
