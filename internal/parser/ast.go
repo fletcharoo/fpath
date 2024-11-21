@@ -11,6 +11,7 @@ const (
 	ExprType_Undefined = iota
 	ExprType_Number
 	ExprType_Add
+	ExprType_Multiply
 )
 
 var errInvalidDecode = errors.New("cannot decode expression")
@@ -23,11 +24,13 @@ type Expr interface {
 	Decode() (any, error)
 }
 
-func (ExprNumber) Type() int { return ExprType_Number }
-func (ExprAdd) Type() int    { return ExprType_Add }
+func (ExprNumber) Type() int   { return ExprType_Number }
+func (ExprAdd) Type() int      { return ExprType_Add }
+func (ExprMultiply) Type() int { return ExprType_Multiply }
 
-func (ExprNumber) String() string { return "Number" }
-func (ExprAdd) String() string    { return "Add" }
+func (ExprNumber) String() string   { return "Number" }
+func (ExprAdd) String() string      { return "Add" }
+func (ExprMultiply) String() string { return "Multiply" }
 
 // ExprNumber represents a number literal.
 type ExprNumber struct {
@@ -51,6 +54,17 @@ type ExprAdd struct {
 }
 
 func (e ExprAdd) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprMultiply represents an operation that adds two expressions together.
+type ExprMultiply struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprMultiply) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }

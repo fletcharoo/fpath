@@ -24,7 +24,8 @@ func init() {
 	}
 
 	operatorMap = map[int]operatorFunc{
-		lexer.TokenType_Plus: operatorAdd,
+		lexer.TokenType_Plus:     operatorAdd,
+		lexer.TokenType_Asterisk: operatorMultiply,
 	}
 }
 
@@ -115,6 +116,15 @@ func parseNumber(tok lexer.Token) (expr Expr, err error) {
 // operatorAdd implements operatorFunc.
 func operatorAdd(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprAdd{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorAdd wraps two expressions in an add expression.
+// operatorAdd implements operatorFunc.
+func operatorMultiply(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprMultiply{
 		Expr1: expr1,
 		Expr2: expr2,
 	}
