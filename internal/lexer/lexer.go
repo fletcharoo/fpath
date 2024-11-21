@@ -14,6 +14,8 @@ const (
 	TokenType_StringLiteral
 	TokenType_Plus
 	TokenType_Asterisk
+	TokenType_LeftParan
+	TokenType_RightParan
 )
 
 var (
@@ -24,6 +26,8 @@ var (
 		TokenType_StringLiteral: "StringLiteral",
 		TokenType_Plus:          "Plus",
 		TokenType_Asterisk:      "Asterisk",
+		TokenType_LeftParan:     "LeftParan",
+		TokenType_RightParan:    "RightParan",
 	}
 
 	errUnexpectedEOF = errors.New("unexpected EOF")
@@ -139,6 +143,16 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_Asterisk,
+			}, nil
+		case '(':
+			l.index++
+			return Token{
+				Type: TokenType_LeftParan,
+			}, nil
+		case ')':
+			l.index++
+			return Token{
+				Type: TokenType_RightParan,
 			}, nil
 		default:
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))

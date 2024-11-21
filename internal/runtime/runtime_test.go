@@ -30,6 +30,9 @@ func Test_Eval(t *testing.T) {
 		"multiply": {
 			query: "2 * 3",
 		},
+		"block": {
+			query: "2 + ((5 * 10) * 2) + 2",
+		},
 	}
 
 	for name, tc := range testCases {

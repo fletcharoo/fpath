@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	parseFunc    func(lexer.Token) (Expr, error)
+	parseFunc    func(*Parser, lexer.Token) (Expr, error)
 	operatorFunc func(Expr, Expr) Expr
 )
 
@@ -19,8 +19,9 @@ var operatorMap map[int]operatorFunc
 
 func init() {
 	parseMap = map[int]parseFunc{
-		ExprType_Undefined: parseUndefined,
-		ExprType_Number:    parseNumber,
+		lexer.TokenType_Undefined: parseUndefined,
+		lexer.TokenType_LeftParan: parseBlock,
+		lexer.TokenType_Number:    parseNumber,
 	}
 
 	operatorMap = map[int]operatorFunc{
@@ -54,7 +55,7 @@ func (p *Parser) Parse() (expr Expr, err error) {
 		err = fmt.Errorf("unrecognizable token: %s", tok)
 	}
 
-	expr, err = f(tok)
+	expr, err = f(p, tok)
 	if err != nil {
 		err = fmt.Errorf("failed to parse: %w", err)
 		return
@@ -95,14 +96,39 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 
 // parseUndefined parses an undefined token.
 // parseUndefined implements parseFunc.
-func parseUndefined(tok lexer.Token) (expr Expr, err error) {
+func parseUndefined(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	err = fmt.Errorf("undefined token: %v", tok.Value)
 	return
 }
 
+// parseBlock parses a blocked expression (an expression within parantheses).
+// parseBlock implement parseFunc.
+func parseBlock(p *Parser, _ lexer.Token) (expr Expr, err error) {
+	expr, err = p.Parse()
+	if err != nil {
+		err = fmt.Errorf("parseBlock: %w", err)
+		return
+	}
+
+	tok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+
+	if tok.Type != lexer.TokenType_RightParan {
+		err = fmt.Errorf("expected RightParan, got %s", tok)
+		return
+	}
+
+	return ExprBlock{
+		Expr: expr,
+	}, nil
+}
+
 // parseNumber parses a number token.
 // parseNumber implements parseFunc.
-func parseNumber(tok lexer.Token) (expr Expr, err error) {
+func parseNumber(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	var exprNumber ExprNumber
 	exprNumber.Value, err = decimal.NewFromString(tok.Value)
 	if err != nil {

@@ -13,6 +13,7 @@ var evalMap map[int]evalFunc
 func init() {
 	evalMap = map[int]evalFunc{
 		parser.ExprType_Undefined: evalUndefined,
+		parser.ExprType_Block:     evalBlock,
 		parser.ExprType_Number:    evalLiteral,
 		parser.ExprType_Add:       evalAdd,
 		parser.ExprType_Multiply:  evalMultiply,
@@ -39,6 +40,17 @@ func evalUndefined(_ parser.Expr, _ any) (ret parser.Expr, err error) {
 // evalLiteral returns the expression passed into it.
 func evalLiteral(expr parser.Expr, _ any) (ret parser.Expr, err error) {
 	return expr, nil
+}
+
+// evalLiteral evaluates the contained expression.
+func evalBlock(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprBlock, ok := expr.(parser.ExprBlock)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as block")
+		return
+	}
+
+	return Eval(exprBlock.Expr, input)
 }
 
 // evalAdd accepts a parser.ExprAdd expression and performs the operation.
