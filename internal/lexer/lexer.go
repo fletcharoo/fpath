@@ -22,6 +22,7 @@ const (
 	TokenType_GreaterThan
 	TokenType_GreaterThanOrEqual
 	TokenType_LessThan
+	TokenType_LessThanOrEqual
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -42,6 +43,7 @@ var (
 		TokenType_GreaterThan:        "GreaterThan",
 		TokenType_GreaterThanOrEqual: "GreaterThanOrEqual",
 		TokenType_LessThan:           "LessThan",
+		TokenType_LessThanOrEqual:    "LessThanOrEqual",
 		TokenType_LeftParan:          "LeftParan",
 		TokenType_RightParan:         "RightParan",
 	}
@@ -213,6 +215,14 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			}, nil
 		case '<':
 			l.index++
+			// Check if this is the start of <= operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '=' {
+				l.index++
+				return Token{
+					Type: TokenType_LessThanOrEqual,
+				}, nil
+			}
 			return Token{
 				Type: TokenType_LessThan,
 			}, nil

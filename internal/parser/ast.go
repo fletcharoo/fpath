@@ -21,6 +21,7 @@ const (
 	ExprType_GreaterThan
 	ExprType_GreaterThanOrEqual
 	ExprType_LessThan
+	ExprType_LessThanOrEqual
 	ExprType_Boolean
 )
 
@@ -46,6 +47,7 @@ func (ExprNotEquals) Type() int          { return ExprType_NotEquals }
 func (ExprGreaterThan) Type() int        { return ExprType_GreaterThan }
 func (ExprGreaterThanOrEqual) Type() int { return ExprType_GreaterThanOrEqual }
 func (ExprLessThan) Type() int           { return ExprType_LessThan }
+func (ExprLessThanOrEqual) Type() int    { return ExprType_LessThanOrEqual }
 func (ExprBoolean) Type() int            { return ExprType_Boolean }
 
 func (ExprBlock) String() string              { return "Block" }
@@ -60,6 +62,7 @@ func (ExprNotEquals) String() string          { return "NotEquals" }
 func (ExprGreaterThan) String() string        { return "GreaterThan" }
 func (ExprGreaterThanOrEqual) String() string { return "GreaterThanOrEqual" }
 func (ExprLessThan) String() string           { return "LessThan" }
+func (ExprLessThanOrEqual) String() string    { return "LessThanOrEqual" }
 func (ExprBoolean) String() string            { return "Boolean" }
 
 // ExprBlock represents a grouped expression.
@@ -192,6 +195,17 @@ type ExprLessThan struct {
 }
 
 func (e ExprLessThan) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprLessThanOrEqual represents an operation that checks if one expression is less than or equal to another.
+type ExprLessThanOrEqual struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprLessThanOrEqual) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }
