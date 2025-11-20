@@ -186,6 +186,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Equals},
 			},
 		},
+		"NotEquals": {
+			input: "!=",
+			expectedTokens: []Token{
+				{Type: TokenType_NotEquals},
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -233,31 +239,48 @@ func Test_Lexer_getToken_EOF(t *testing.T) {
 }
 
 func Test_Lexer_getToken_InvalidRune(t *testing.T) {
-	input := "  123  `"
-	expected := Token{
-		Type:  TokenType_Number,
-		Value: "123",
-	}
-	lexer := New(input)
-
-	tok, err := lexer.GetToken()
-
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-
-	if err := _tokensMatch(expected, tok); err != nil {
-		t.Fatalf("Unexpected result: %s", err)
+	testCases := map[string]struct {
+		input string
+	}{
+		"backtick": {
+			input: "  123  `",
+		},
+		"single equals": {
+			input: "  123  =",
+		},
+		"single exclamation": {
+			input: "  123  !",
+		},
 	}
 
-	_, err = lexer.GetToken()
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			expected := Token{
+				Type:  TokenType_Number,
+				Value: "123",
+			}
+			lexer := New(tc.input)
 
-	if err == nil {
-		t.Fatalf("Error expected but not returned")
-	}
+			tok, err := lexer.GetToken()
 
-	if !errors.Is(err, errInvalidRune) {
-		t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", errInvalidRune, err)
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := _tokensMatch(expected, tok); err != nil {
+				t.Fatalf("Unexpected result: %s", err)
+			}
+
+			_, err = lexer.GetToken()
+
+			if err == nil {
+				t.Fatalf("Error expected but not returned")
+			}
+
+			if !errors.Is(err, errInvalidRune) {
+				t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", errInvalidRune, err)
+			}
+		})
 	}
 }
 

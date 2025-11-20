@@ -18,6 +18,7 @@ const (
 	TokenType_Asterisk
 	TokenType_Slash
 	TokenType_Equals
+	TokenType_NotEquals
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -34,6 +35,7 @@ var (
 		TokenType_Asterisk:      "Asterisk",
 		TokenType_Slash:         "Slash",
 		TokenType_Equals:        "Equals",
+		TokenType_NotEquals:     "NotEquals",
 		TokenType_LeftParan:     "LeftParan",
 		TokenType_RightParan:    "RightParan",
 	}
@@ -173,6 +175,19 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 				}, nil
 			}
 			// Single = is not supported, return error
+			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
+			return
+		case '!':
+			l.index++
+			// Check if this is the start of != operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '=' {
+				l.index++
+				return Token{
+					Type: TokenType_NotEquals,
+				}, nil
+			}
+			// Single ! is not supported, return error
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
 			return
 		case '(':

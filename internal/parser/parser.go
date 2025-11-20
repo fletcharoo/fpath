@@ -27,11 +27,12 @@ func init() {
 	}
 
 	operatorMap = map[int]operatorFunc{
-		lexer.TokenType_Plus:     operatorAdd,
-		lexer.TokenType_Minus:    operatorSubtract,
-		lexer.TokenType_Asterisk: operatorMultiply,
-		lexer.TokenType_Slash:    operatorDivide,
-		lexer.TokenType_Equals:   operatorEquals,
+		lexer.TokenType_Plus:      operatorAdd,
+		lexer.TokenType_Minus:     operatorSubtract,
+		lexer.TokenType_Asterisk:  operatorMultiply,
+		lexer.TokenType_Slash:     operatorDivide,
+		lexer.TokenType_Equals:    operatorEquals,
+		lexer.TokenType_NotEquals: operatorNotEquals,
 	}
 }
 
@@ -203,6 +204,15 @@ func operatorDivide(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorEquals implements operatorFunc.
 func operatorEquals(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprEquals{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorNotEquals wraps two expressions in a not equals expression.
+// operatorNotEquals implements operatorFunc.
+func operatorNotEquals(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprNotEquals{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

@@ -17,6 +17,7 @@ const (
 	ExprType_Multiply
 	ExprType_Divide
 	ExprType_Equals
+	ExprType_NotEquals
 	ExprType_Boolean
 )
 
@@ -30,25 +31,27 @@ type Expr interface {
 	Decode() (any, error)
 }
 
-func (ExprBlock) Type() int    { return ExprType_Block }
-func (ExprNumber) Type() int   { return ExprType_Number }
-func (ExprString) Type() int   { return ExprType_String }
-func (ExprAdd) Type() int      { return ExprType_Add }
-func (ExprSubtract) Type() int { return ExprType_Subtract }
-func (ExprMultiply) Type() int { return ExprType_Multiply }
-func (ExprDivide) Type() int   { return ExprType_Divide }
-func (ExprEquals) Type() int   { return ExprType_Equals }
-func (ExprBoolean) Type() int  { return ExprType_Boolean }
+func (ExprBlock) Type() int     { return ExprType_Block }
+func (ExprNumber) Type() int    { return ExprType_Number }
+func (ExprString) Type() int    { return ExprType_String }
+func (ExprAdd) Type() int       { return ExprType_Add }
+func (ExprSubtract) Type() int  { return ExprType_Subtract }
+func (ExprMultiply) Type() int  { return ExprType_Multiply }
+func (ExprDivide) Type() int    { return ExprType_Divide }
+func (ExprEquals) Type() int    { return ExprType_Equals }
+func (ExprNotEquals) Type() int { return ExprType_NotEquals }
+func (ExprBoolean) Type() int   { return ExprType_Boolean }
 
-func (ExprBlock) String() string    { return "Block" }
-func (ExprNumber) String() string   { return "Number" }
-func (ExprString) String() string   { return "String" }
-func (ExprAdd) String() string      { return "Add" }
-func (ExprSubtract) String() string { return "Subtract" }
-func (ExprMultiply) String() string { return "Multiply" }
-func (ExprDivide) String() string   { return "Divide" }
-func (ExprEquals) String() string   { return "Equals" }
-func (ExprBoolean) String() string  { return "Boolean" }
+func (ExprBlock) String() string     { return "Block" }
+func (ExprNumber) String() string    { return "Number" }
+func (ExprString) String() string    { return "String" }
+func (ExprAdd) String() string       { return "Add" }
+func (ExprSubtract) String() string  { return "Subtract" }
+func (ExprMultiply) String() string  { return "Multiply" }
+func (ExprDivide) String() string    { return "Divide" }
+func (ExprEquals) String() string    { return "Equals" }
+func (ExprNotEquals) String() string { return "NotEquals" }
+func (ExprBoolean) String() string   { return "Boolean" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -136,6 +139,17 @@ type ExprEquals struct {
 }
 
 func (e ExprEquals) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprNotEquals represents an operation that checks inequality between two expressions.
+type ExprNotEquals struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprNotEquals) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }
