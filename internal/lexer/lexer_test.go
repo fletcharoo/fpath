@@ -180,6 +180,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Plus},
 			},
 		},
+		"Equals": {
+			input: "==",
+			expectedTokens: []Token{
+				{Type: TokenType_Equals},
+			},
+		},
 	}
 
 	for name, tc := range testCases {

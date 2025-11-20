@@ -16,10 +16,12 @@ func init() {
 		parser.ExprType_Block:     evalBlock,
 		parser.ExprType_Number:    evalLiteral,
 		parser.ExprType_String:    evalString,
+		parser.ExprType_Boolean:   evalLiteral,
 		parser.ExprType_Add:       evalAdd,
 		parser.ExprType_Subtract:  evalSubtract,
 		parser.ExprType_Multiply:  evalMultiply,
 		parser.ExprType_Divide:    evalDivide,
+		parser.ExprType_Equals:    evalEquals,
 	}
 }
 
@@ -361,4 +363,113 @@ func evalDivideNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) 
 	}
 
 	return resultNumber, nil
+}
+
+// evalEquals accepts a parser.ExprEquals expression and performs the equality comparison.
+func evalEquals(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprEquals, ok := expr.(parser.ExprEquals)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as equals")
+		return
+	}
+
+	expr1, err := Eval(exprEquals.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprEquals.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalEqualsNumber(expr1, expr2)
+	case parser.ExprType_String:
+		return evalEqualsString(expr1, expr2)
+	case parser.ExprType_Boolean:
+		return evalEqualsBoolean(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid equals type: %s", expr1)
+		return
+	}
+}
+
+// evalEqualsNumber accepts two parser.ExprNumber expressions and compares them for equality.
+func evalEqualsNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	isEqual := expr1Number.Value.Equal(expr2Number.Value)
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isEqual,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalEqualsString accepts two parser.ExprString expressions and compares them for equality.
+func evalEqualsString(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1String, ok := expr1.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as string")
+		return
+	}
+
+	expr2String, ok := expr2.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as string")
+		return
+	}
+
+	isEqual := expr1String.Value == expr2String.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isEqual,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalEqualsBoolean accepts two parser.ExprBoolean expressions and compares them for equality.
+func evalEqualsBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Boolean, ok := expr1.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as boolean")
+		return
+	}
+
+	expr2Boolean, ok := expr2.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as boolean")
+		return
+	}
+
+	isEqual := expr1Boolean.Value == expr2Boolean.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isEqual,
+	}
+
+	return resultBoolean, nil
 }

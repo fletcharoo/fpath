@@ -215,3 +215,96 @@ func Test_Eval_DivideByZero(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_Equals(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"number equals true": {
+			query:    "5 == 5",
+			expected: true,
+		},
+		"number equals false": {
+			query:    "5 == 3",
+			expected: false,
+		},
+		"string equals true": {
+			query:    `"hello" == "hello"`,
+			expected: true,
+		},
+		"string equals false": {
+			query:    `"hello" == "world"`,
+			expected: false,
+		},
+		"empty string equals true": {
+			query:    `"" == ""`,
+			expected: true,
+		},
+		"complex expression equals true": {
+			query:    "(2 + 3) == 5",
+			expected: true,
+		},
+		"complex expression equals false": {
+			query:    "(2 + 3) == 6",
+			expected: false,
+		},
+		"equals with multiplication": {
+			query:    "10 == 2 * 5",
+			expected: true,
+		},
+		"equals with division": {
+			query:    "5 == 10 / 2",
+			expected: true,
+		},
+		"equals with subtraction": {
+			query:    "3 == 5 - 2",
+			expected: true,
+		},
+		"equals with parentheses": {
+			query:    "(5 == 5) == true",
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Equals_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"number == string": {
+			query: `5 == "5"`,
+		},
+		"string == number": {
+			query: `"5" == 5`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+		})
+	}
+}

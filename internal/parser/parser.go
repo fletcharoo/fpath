@@ -23,6 +23,7 @@ func init() {
 		lexer.TokenType_LeftParan:     parseBlock,
 		lexer.TokenType_Number:        parseNumber,
 		lexer.TokenType_StringLiteral: parseString,
+		lexer.TokenType_Boolean:       parseBoolean,
 	}
 
 	operatorMap = map[int]operatorFunc{
@@ -30,6 +31,7 @@ func init() {
 		lexer.TokenType_Minus:    operatorSubtract,
 		lexer.TokenType_Asterisk: operatorMultiply,
 		lexer.TokenType_Slash:    operatorDivide,
+		lexer.TokenType_Equals:   operatorEquals,
 	}
 }
 
@@ -151,6 +153,16 @@ func parseString(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	return exprString, nil
 }
 
+// parseBoolean parses a boolean literal token.
+// parseBoolean implements parseFunc.
+func parseBoolean(_ *Parser, tok lexer.Token) (expr Expr, err error) {
+	exprBoolean := ExprBoolean{
+		Value: tok.Value == "true",
+	}
+
+	return exprBoolean, nil
+}
+
 // operatorAdd wraps two expressions in an add expression.
 // operatorAdd implements operatorFunc.
 func operatorAdd(expr1 Expr, expr2 Expr) (op Expr) {
@@ -182,6 +194,15 @@ func operatorMultiply(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorDivide implements operatorFunc.
 func operatorDivide(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprDivide{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorEquals wraps two expressions in an equals expression.
+// operatorEquals implements operatorFunc.
+func operatorEquals(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprEquals{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

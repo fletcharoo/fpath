@@ -12,10 +12,12 @@ const (
 	TokenType_Number
 	TokenType_Label
 	TokenType_StringLiteral
+	TokenType_Boolean
 	TokenType_Plus
 	TokenType_Minus
 	TokenType_Asterisk
 	TokenType_Slash
+	TokenType_Equals
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -26,10 +28,12 @@ var (
 		TokenType_Number:        "Number",
 		TokenType_Label:         "Label",
 		TokenType_StringLiteral: "StringLiteral",
+		TokenType_Boolean:       "Boolean",
 		TokenType_Plus:          "Plus",
 		TokenType_Minus:         "Minus",
 		TokenType_Asterisk:      "Asterisk",
 		TokenType_Slash:         "Slash",
+		TokenType_Equals:        "Equals",
 		TokenType_LeftParan:     "LeftParan",
 		TokenType_RightParan:    "RightParan",
 	}
@@ -158,6 +162,19 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			return Token{
 				Type: TokenType_Slash,
 			}, nil
+		case '=':
+			l.index++
+			// Check if this is the start of == operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '=' {
+				l.index++
+				return Token{
+					Type: TokenType_Equals,
+				}, nil
+			}
+			// Single = is not supported, return error
+			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
+			return
 		case '(':
 			l.index++
 			return Token{
@@ -241,6 +258,11 @@ func (l *Lexer) getTokenLabel() (tok Token, err error) {
 		break
 	}
 
+	// Check if this is a boolean literal
+	if tok.Value == "true" || tok.Value == "false" {
+		tok.Type = TokenType_Boolean
+	}
+
 	if err == io.EOF {
 		return tok, nil
 	}
@@ -273,6 +295,40 @@ func (l *Lexer) getTokenStringLiteral() (tok Token, err error) {
 		}
 
 		tok.Value += string(r)
+	}
+
+	return tok, nil
+}
+
+// getTokenBoolean returns the current boolean literal token in the input
+// string. It recognizes "true" and "false".
+func (l *Lexer) getTokenBoolean() (tok Token, err error) {
+	tok.Type = TokenType_Boolean
+	var r rune
+
+	// Peek ahead to see if this is "true" or "false"
+	startIndex := l.index
+	for {
+		r, err = l.peekRune()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return tok, err
+		}
+		if !isLabelRune(r) {
+			break
+		}
+		l.index++
+		tok.Value += string(r)
+	}
+
+	// Validate that it's either "true" or "false"
+	if tok.Value != "true" && tok.Value != "false" {
+		// Reset index and treat as invalid rune
+		l.index = startIndex
+		err = fmt.Errorf("%w: %s", errInvalidRune, tok.Value)
+		return
 	}
 
 	return tok, nil
