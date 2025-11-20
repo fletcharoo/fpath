@@ -204,6 +204,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_GreaterThanOrEqual},
 			},
 		},
+		"And": {
+			input: "&&",
+			expectedTokens: []Token{
+				{Type: TokenType_And},
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -262,6 +268,9 @@ func Test_Lexer_getToken_InvalidRune(t *testing.T) {
 		},
 		"single exclamation": {
 			input: "  123  !",
+		},
+		"single ampersand": {
+			input: "  123  &",
 		},
 	}
 

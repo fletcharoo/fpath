@@ -323,6 +323,48 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"And operation": {
+			input: "true&&false",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_And {
+					t.Fatalf("Expected And type, got %d", expr.Type())
+				}
+				and, ok := expr.(ExprAnd)
+				if !ok {
+					t.Fatalf("Expected ExprAnd, got %T", expr)
+				}
+				if and.Expr1.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean as first operand, got %d", and.Expr1.Type())
+				}
+				if and.Expr2.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean as second operand, got %d", and.Expr2.Type())
+				}
+			},
+		},
+		"And operation with parentheses": {
+			input: "true&&false",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_And {
+					t.Fatalf("Expected And type, got %d", expr.Type())
+				}
+				and, ok := expr.(ExprAnd)
+				if !ok {
+					t.Fatalf("Expected ExprAnd, got %T", expr)
+				}
+				if and.Expr1.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean as first operand, got %d", and.Expr1.Type())
+				}
+				if and.Expr2.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean as second operand, got %d", and.Expr2.Type())
+				}
+			},
+		},
 	}
 
 	for name, tc := range testCases {

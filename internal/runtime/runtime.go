@@ -27,6 +27,7 @@ func init() {
 		parser.ExprType_GreaterThanOrEqual: evalGreaterThanOrEqual,
 		parser.ExprType_LessThan:           evalLessThan,
 		parser.ExprType_LessThanOrEqual:    evalLessThanOrEqual,
+		parser.ExprType_And:                evalAnd,
 	}
 }
 
@@ -1019,6 +1020,70 @@ func evalGreaterThanOrEqualBoolean(expr1, expr2 parser.Expr) (result parser.Expr
 
 	resultBoolean := parser.ExprBoolean{
 		Value: isGreaterOrEqual,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalAnd accepts a parser.ExprAnd expression and performs the logical AND operation.
+func evalAnd(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprAnd, ok := expr.(parser.ExprAnd)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as and")
+		return
+	}
+
+	// Evaluate first expression
+	expr1, err := Eval(exprAnd.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	// Short-circuit: if first expression is false, don't evaluate second
+	if expr1.Type() == parser.ExprType_Boolean {
+		expr1Boolean, ok := expr1.(parser.ExprBoolean)
+		if ok && !expr1Boolean.Value {
+			return parser.ExprBoolean{Value: false}, nil
+		}
+	}
+
+	// Evaluate second expression
+	expr2, err := Eval(exprAnd.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	// Both expressions must be boolean
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != parser.ExprType_Boolean || expr2Type != parser.ExprType_Boolean {
+		err = fmt.Errorf("AND operation requires boolean expressions, got %s and %s", expr1, expr2)
+		return
+	}
+
+	return evalAndBoolean(expr1, expr2)
+}
+
+// evalAndBoolean accepts two parser.ExprBoolean expressions and performs logical AND.
+func evalAndBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Boolean, ok := expr1.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as boolean")
+		return
+	}
+
+	expr2Boolean, ok := expr2.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as boolean")
+		return
+	}
+
+	andResult := expr1Boolean.Value && expr2Boolean.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: andResult,
 	}
 
 	return resultBoolean, nil
