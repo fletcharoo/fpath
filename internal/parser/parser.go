@@ -38,6 +38,7 @@ func init() {
 		lexer.TokenType_LessThan:           operatorLessThan,
 		lexer.TokenType_LessThanOrEqual:    operatorLessThanOrEqual,
 		lexer.TokenType_And:                operatorAnd,
+		lexer.TokenType_Or:                 operatorOr,
 	}
 }
 
@@ -263,6 +264,15 @@ func operatorGreaterThanOrEqual(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorAnd implements operatorFunc.
 func operatorAnd(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprAnd{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorOr wraps two expressions in an OR expression.
+// operatorOr implements operatorFunc.
+func operatorOr(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprOr{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

@@ -23,6 +23,7 @@ const (
 	ExprType_LessThan
 	ExprType_LessThanOrEqual
 	ExprType_And
+	ExprType_Or
 	ExprType_Boolean
 )
 
@@ -54,6 +55,7 @@ func (ExprGreaterThanOrEqual) Type() int { return ExprType_GreaterThanOrEqual }
 func (ExprLessThan) Type() int           { return ExprType_LessThan }
 func (ExprLessThanOrEqual) Type() int    { return ExprType_LessThanOrEqual }
 func (ExprAnd) Type() int                { return ExprType_And }
+func (ExprOr) Type() int                 { return ExprType_Or }
 func (ExprBoolean) Type() int            { return ExprType_Boolean }
 
 func (ExprBlock) String() string              { return "Block" }
@@ -70,6 +72,7 @@ func (ExprGreaterThanOrEqual) String() string { return "GreaterThanOrEqual" }
 func (ExprLessThan) String() string           { return "LessThan" }
 func (ExprLessThanOrEqual) String() string    { return "LessThanOrEqual" }
 func (ExprAnd) String() string                { return "And" }
+func (ExprOr) String() string                 { return "Or" }
 func (ExprBoolean) String() string            { return "Boolean" }
 
 // ExprBlock represents a grouped expression.
@@ -224,6 +227,17 @@ type ExprAnd struct {
 }
 
 func (e ExprAnd) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprOr represents a logical OR operation between two expressions.
+type ExprOr struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprOr) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

@@ -1524,3 +1524,229 @@ func Test_Eval_And_ShortCircuit(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_Or(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"true || true": {
+			query:    "true || true",
+			expected: true,
+		},
+		"true || false": {
+			query:    "true || false",
+			expected: true,
+		},
+		"false || true": {
+			query:    "false || true",
+			expected: true,
+		},
+		"false || false": {
+			query:    "false || false",
+			expected: false,
+		},
+		"or with equals true": {
+			query:    "(true == true) || (false == false)",
+			expected: true,
+		},
+		"or with equals false": {
+			query:    "(true == false) || (false == true)",
+			expected: false,
+		},
+		"or with not equals true": {
+			query:    "(true != false) || (false != true)",
+			expected: true,
+		},
+		"or with not equals mixed": {
+			query:    "(true != true) || (false != false)",
+			expected: false,
+		},
+		"or with greater than true": {
+			query:    "(5 > 3) || (10 > 5)",
+			expected: true,
+		},
+		"or with greater than mixed": {
+			query:    "(5 > 10) || (10 > 5)",
+			expected: true,
+		},
+		"or with greater than false": {
+			query:    "(5 > 10) || (10 > 20)",
+			expected: false,
+		},
+		"or with less than true": {
+			query:    "(3 < 5) || (5 < 10)",
+			expected: true,
+		},
+		"or with less than mixed": {
+			query:    "(10 < 5) || (5 < 10)",
+			expected: true,
+		},
+		"or with less than false": {
+			query:    "(10 < 5) || (5 < 1)",
+			expected: false,
+		},
+		"or with greater than or equal true": {
+			query:    "(5 >= 3) || (10 >= 10)",
+			expected: true,
+		},
+		"or with greater than or equal mixed": {
+			query:    "(5 >= 10) || (10 >= 5)",
+			expected: true,
+		},
+		"or with greater than or equal false": {
+			query:    "(5 >= 10) || (10 >= 20)",
+			expected: false,
+		},
+		"or with less than or equal true": {
+			query:    "(3 <= 5) || (10 <= 10)",
+			expected: true,
+		},
+		"or with less than or equal mixed": {
+			query:    "(10 <= 5) || (5 <= 10)",
+			expected: true,
+		},
+		"or with less than or equal false": {
+			query:    "(10 <= 5) || (5 <= 1)",
+			expected: false,
+		},
+		"complex or expression true": {
+			query:    "(5 > 3) || (10 < 5) || (15 >= 20)",
+			expected: true,
+		},
+		"complex or expression false": {
+			query:    "(5 > 10) || (10 < 5) || (15 >= 20)",
+			expected: false,
+		},
+		"or with arithmetic true": {
+			query:    "((2 + 3) == 5) || ((10 - 5) == 3)",
+			expected: true,
+		},
+		"or with arithmetic mixed": {
+			query:    "((2 + 3) == 6) || ((10 - 5) == 5)",
+			expected: true,
+		},
+		"or with arithmetic false": {
+			query:    "((2 + 3) == 6) || ((10 - 5) == 3)",
+			expected: false,
+		},
+		"nested or with parentheses true": {
+			query:    "((true == true) || (false == true)) || ((5 > 3) || (10 < 5))",
+			expected: true,
+		},
+		"nested or with parentheses mixed": {
+			query:    "((true == false) || (true == true)) || ((5 > 10) || (10 < 5))",
+			expected: true,
+		},
+		"nested or with parentheses false": {
+			query:    "((true == false) || (false == true)) || ((5 > 10) || (10 < 5))",
+			expected: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Or_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"boolean || number": {
+			query: "false || 5",
+		},
+		"number || boolean": {
+			query: "5 || false",
+		},
+		"number || number": {
+			query: "5 || 10",
+		},
+		"boolean || string": {
+			query: `false || "hello"`,
+		},
+		"string || boolean": {
+			query: `"hello" || false`,
+		},
+		"string || string": {
+			query: `"hello" || "world"`,
+		},
+		"or with mixed types": {
+			query: "(5 != 5) || \"hello\"",
+		},
+		"or with arithmetic result": {
+			query: "false || (2 + 3)",
+		},
+		"or with string concatenation": {
+			query: "false || (\"hello\" + \"world\")",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.ErrorIs(t, err, runtime.ErrBooleanOperation, "Error should be ErrBooleanOperation")
+		})
+	}
+}
+
+func Test_Eval_Or_ShortCircuit(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"short circuit true || false": {
+			query:    "true || false",
+			expected: true,
+		},
+		"short circuit true || true": {
+			query:    "true || true",
+			expected: true,
+		},
+		"short circuit true || complex": {
+			query:    "true || (5 == 5)",
+			expected: true,
+		},
+		"short circuit true || invalid": {
+			query:    "true || (5 == \"hello\")", // This would fail type checking if evaluated
+			expected: true,
+		},
+		"short circuit with comparison": {
+			query:    "(5 < 10) || (10 / 0 == 1)", // Division by zero would error if evaluated
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error (short-circuit should prevent errors)")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}

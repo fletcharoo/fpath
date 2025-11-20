@@ -10,7 +10,7 @@ import (
 var (
 	ErrIncompatibleTypes = errors.New("incompatible types")
 	ErrDivisionByZero    = errors.New("division by zero")
-	ErrBooleanOperation  = errors.New("AND operation requires boolean expressions")
+	ErrBooleanOperation  = errors.New("boolean operation requires boolean expressions")
 )
 
 type evalFunc func(parser.Expr, any) (parser.Expr, error)
@@ -35,6 +35,7 @@ func init() {
 		parser.ExprType_LessThan:           evalLessThan,
 		parser.ExprType_LessThanOrEqual:    evalLessThanOrEqual,
 		parser.ExprType_And:                evalAnd,
+		parser.ExprType_Or:                 evalOr,
 	}
 }
 
@@ -1091,6 +1092,70 @@ func evalAndBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
 
 	resultBoolean := parser.ExprBoolean{
 		Value: andResult,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalOr accepts a parser.ExprOr expression and performs the logical OR operation.
+func evalOr(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprOr, ok := expr.(parser.ExprOr)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as or")
+		return
+	}
+
+	// Evaluate first expression
+	expr1, err := Eval(exprOr.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	// Short-circuit: if first expression is true, don't evaluate second
+	if expr1.Type() == parser.ExprType_Boolean {
+		expr1Boolean, ok := expr1.(parser.ExprBoolean)
+		if ok && expr1Boolean.Value {
+			return parser.ExprBoolean{Value: true}, nil
+		}
+	}
+
+	// Evaluate second expression
+	expr2, err := Eval(exprOr.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	// Both expressions must be boolean
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != parser.ExprType_Boolean || expr2Type != parser.ExprType_Boolean {
+		err = fmt.Errorf("%w: got %s and %s", ErrBooleanOperation, expr1, expr2)
+		return
+	}
+
+	return evalOrBoolean(expr1, expr2)
+}
+
+// evalOrBoolean accepts two parser.ExprBoolean expressions and performs logical OR.
+func evalOrBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Boolean, ok := expr1.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as boolean")
+		return
+	}
+
+	expr2Boolean, ok := expr2.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as boolean")
+		return
+	}
+
+	orResult := expr1Boolean.Value || expr2Boolean.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: orResult,
 	}
 
 	return resultBoolean, nil

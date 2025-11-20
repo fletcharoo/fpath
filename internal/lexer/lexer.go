@@ -24,6 +24,7 @@ const (
 	TokenType_LessThan
 	TokenType_LessThanOrEqual
 	TokenType_And
+	TokenType_Or
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -46,6 +47,7 @@ var (
 		TokenType_LessThan:           "LessThan",
 		TokenType_LessThanOrEqual:    "LessThanOrEqual",
 		TokenType_And:                "And",
+		TokenType_Or:                 "Or",
 		TokenType_LeftParan:          "LeftParan",
 		TokenType_RightParan:         "RightParan",
 	}
@@ -213,6 +215,19 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 				}, nil
 			}
 			// Single & is not supported, return error
+			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
+			return
+		case '|':
+			l.index++
+			// Check if this is the start of || operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '|' {
+				l.index++
+				return Token{
+					Type: TokenType_Or,
+				}, nil
+			}
+			// Single | is not supported, return error
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
 			return
 		case '>':

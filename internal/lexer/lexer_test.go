@@ -210,6 +210,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_And},
 			},
 		},
+		"Or": {
+			input: "||",
+			expectedTokens: []Token{
+				{Type: TokenType_Or},
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -271,6 +277,9 @@ func Test_Lexer_getToken_InvalidRune(t *testing.T) {
 		},
 		"single ampersand": {
 			input: "  123  &",
+		},
+		"single pipe": {
+			input: "  123  |",
 		},
 	}
 
