@@ -20,6 +20,7 @@ const (
 	TokenType_Equals
 	TokenType_NotEquals
 	TokenType_GreaterThan
+	TokenType_GreaterThanOrEqual
 	TokenType_LessThan
 	TokenType_LeftParan
 	TokenType_RightParan
@@ -27,21 +28,22 @@ const (
 
 var (
 	TokenTypeString map[int]string = map[int]string{
-		TokenType_Undefined:     "Undefined",
-		TokenType_Number:        "Number",
-		TokenType_Label:         "Label",
-		TokenType_StringLiteral: "StringLiteral",
-		TokenType_Boolean:       "Boolean",
-		TokenType_Plus:          "Plus",
-		TokenType_Minus:         "Minus",
-		TokenType_Asterisk:      "Asterisk",
-		TokenType_Slash:         "Slash",
-		TokenType_Equals:        "Equals",
-		TokenType_NotEquals:     "NotEquals",
-		TokenType_GreaterThan:   "GreaterThan",
-		TokenType_LessThan:      "LessThan",
-		TokenType_LeftParan:     "LeftParan",
-		TokenType_RightParan:    "RightParan",
+		TokenType_Undefined:          "Undefined",
+		TokenType_Number:             "Number",
+		TokenType_Label:              "Label",
+		TokenType_StringLiteral:      "StringLiteral",
+		TokenType_Boolean:            "Boolean",
+		TokenType_Plus:               "Plus",
+		TokenType_Minus:              "Minus",
+		TokenType_Asterisk:           "Asterisk",
+		TokenType_Slash:              "Slash",
+		TokenType_Equals:             "Equals",
+		TokenType_NotEquals:          "NotEquals",
+		TokenType_GreaterThan:        "GreaterThan",
+		TokenType_GreaterThanOrEqual: "GreaterThanOrEqual",
+		TokenType_LessThan:           "LessThan",
+		TokenType_LeftParan:          "LeftParan",
+		TokenType_RightParan:         "RightParan",
 	}
 )
 
@@ -198,6 +200,14 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			return
 		case '>':
 			l.index++
+			// Check if this is the start of >= operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '=' {
+				l.index++
+				return Token{
+					Type: TokenType_GreaterThanOrEqual,
+				}, nil
+			}
 			return Token{
 				Type: TokenType_GreaterThan,
 			}, nil

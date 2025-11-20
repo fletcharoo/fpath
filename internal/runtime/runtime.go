@@ -12,19 +12,20 @@ var evalMap map[int]evalFunc
 
 func init() {
 	evalMap = map[int]evalFunc{
-		parser.ExprType_Undefined:   evalUndefined,
-		parser.ExprType_Block:       evalBlock,
-		parser.ExprType_Number:      evalLiteral,
-		parser.ExprType_String:      evalString,
-		parser.ExprType_Boolean:     evalLiteral,
-		parser.ExprType_Add:         evalAdd,
-		parser.ExprType_Subtract:    evalSubtract,
-		parser.ExprType_Multiply:    evalMultiply,
-		parser.ExprType_Divide:      evalDivide,
-		parser.ExprType_Equals:      evalEquals,
-		parser.ExprType_NotEquals:   evalNotEquals,
-		parser.ExprType_GreaterThan: evalGreaterThan,
-		parser.ExprType_LessThan:    evalLessThan,
+		parser.ExprType_Undefined:          evalUndefined,
+		parser.ExprType_Block:              evalBlock,
+		parser.ExprType_Number:             evalLiteral,
+		parser.ExprType_String:             evalString,
+		parser.ExprType_Boolean:            evalLiteral,
+		parser.ExprType_Add:                evalAdd,
+		parser.ExprType_Subtract:           evalSubtract,
+		parser.ExprType_Multiply:           evalMultiply,
+		parser.ExprType_Divide:             evalDivide,
+		parser.ExprType_Equals:             evalEquals,
+		parser.ExprType_NotEquals:          evalNotEquals,
+		parser.ExprType_GreaterThan:        evalGreaterThan,
+		parser.ExprType_GreaterThanOrEqual: evalGreaterThanOrEqual,
+		parser.ExprType_LessThan:           evalLessThan,
 	}
 }
 
@@ -799,6 +800,115 @@ func evalLessThanBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err erro
 
 	resultBoolean := parser.ExprBoolean{
 		Value: isLess,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalGreaterThanOrEqual accepts a parser.ExprGreaterThanOrEqual expression and performs the greater than or equal comparison.
+func evalGreaterThanOrEqual(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprGreaterThanOrEqual, ok := expr.(parser.ExprGreaterThanOrEqual)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as greater than or equal")
+		return
+	}
+
+	expr1, err := Eval(exprGreaterThanOrEqual.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprGreaterThanOrEqual.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalGreaterThanOrEqualNumber(expr1, expr2)
+	case parser.ExprType_String:
+		return evalGreaterThanOrEqualString(expr1, expr2)
+	case parser.ExprType_Boolean:
+		return evalGreaterThanOrEqualBoolean(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid greater than or equal type: %s", expr1)
+		return
+	}
+}
+
+// evalGreaterThanOrEqualNumber accepts two parser.ExprNumber expressions and compares them for greater than or equal.
+func evalGreaterThanOrEqualNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	isGreaterOrEqual := expr1Number.Value.GreaterThanOrEqual(expr2Number.Value)
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isGreaterOrEqual,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalGreaterThanOrEqualString accepts two parser.ExprString expressions and compares them for greater than or equal.
+func evalGreaterThanOrEqualString(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1String, ok := expr1.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as string")
+		return
+	}
+
+	expr2String, ok := expr2.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as string")
+		return
+	}
+
+	isGreaterOrEqual := expr1String.Value >= expr2String.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isGreaterOrEqual,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalGreaterThanOrEqualBoolean accepts two parser.ExprBoolean expressions and compares them for greater than or equal.
+func evalGreaterThanOrEqualBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Boolean, ok := expr1.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as boolean")
+		return
+	}
+
+	expr2Boolean, ok := expr2.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as boolean")
+		return
+	}
+
+	isGreaterOrEqual := expr1Boolean.Value && !expr2Boolean.Value || expr1Boolean.Value == expr2Boolean.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isGreaterOrEqual,
 	}
 
 	return resultBoolean, nil

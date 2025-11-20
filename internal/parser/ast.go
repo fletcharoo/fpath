@@ -19,6 +19,7 @@ const (
 	ExprType_Equals
 	ExprType_NotEquals
 	ExprType_GreaterThan
+	ExprType_GreaterThanOrEqual
 	ExprType_LessThan
 	ExprType_Boolean
 )
@@ -33,31 +34,33 @@ type Expr interface {
 	Decode() (any, error)
 }
 
-func (ExprBlock) Type() int       { return ExprType_Block }
-func (ExprNumber) Type() int      { return ExprType_Number }
-func (ExprString) Type() int      { return ExprType_String }
-func (ExprAdd) Type() int         { return ExprType_Add }
-func (ExprSubtract) Type() int    { return ExprType_Subtract }
-func (ExprMultiply) Type() int    { return ExprType_Multiply }
-func (ExprDivide) Type() int      { return ExprType_Divide }
-func (ExprEquals) Type() int      { return ExprType_Equals }
-func (ExprNotEquals) Type() int   { return ExprType_NotEquals }
-func (ExprGreaterThan) Type() int { return ExprType_GreaterThan }
-func (ExprLessThan) Type() int    { return ExprType_LessThan }
-func (ExprBoolean) Type() int     { return ExprType_Boolean }
+func (ExprBlock) Type() int              { return ExprType_Block }
+func (ExprNumber) Type() int             { return ExprType_Number }
+func (ExprString) Type() int             { return ExprType_String }
+func (ExprAdd) Type() int                { return ExprType_Add }
+func (ExprSubtract) Type() int           { return ExprType_Subtract }
+func (ExprMultiply) Type() int           { return ExprType_Multiply }
+func (ExprDivide) Type() int             { return ExprType_Divide }
+func (ExprEquals) Type() int             { return ExprType_Equals }
+func (ExprNotEquals) Type() int          { return ExprType_NotEquals }
+func (ExprGreaterThan) Type() int        { return ExprType_GreaterThan }
+func (ExprGreaterThanOrEqual) Type() int { return ExprType_GreaterThanOrEqual }
+func (ExprLessThan) Type() int           { return ExprType_LessThan }
+func (ExprBoolean) Type() int            { return ExprType_Boolean }
 
-func (ExprBlock) String() string       { return "Block" }
-func (ExprNumber) String() string      { return "Number" }
-func (ExprString) String() string      { return "String" }
-func (ExprAdd) String() string         { return "Add" }
-func (ExprSubtract) String() string    { return "Subtract" }
-func (ExprMultiply) String() string    { return "Multiply" }
-func (ExprDivide) String() string      { return "Divide" }
-func (ExprEquals) String() string      { return "Equals" }
-func (ExprNotEquals) String() string   { return "NotEquals" }
-func (ExprGreaterThan) String() string { return "GreaterThan" }
-func (ExprLessThan) String() string    { return "LessThan" }
-func (ExprBoolean) String() string     { return "Boolean" }
+func (ExprBlock) String() string              { return "Block" }
+func (ExprNumber) String() string             { return "Number" }
+func (ExprString) String() string             { return "String" }
+func (ExprAdd) String() string                { return "Add" }
+func (ExprSubtract) String() string           { return "Subtract" }
+func (ExprMultiply) String() string           { return "Multiply" }
+func (ExprDivide) String() string             { return "Divide" }
+func (ExprEquals) String() string             { return "Equals" }
+func (ExprNotEquals) String() string          { return "NotEquals" }
+func (ExprGreaterThan) String() string        { return "GreaterThan" }
+func (ExprGreaterThanOrEqual) String() string { return "GreaterThanOrEqual" }
+func (ExprLessThan) String() string           { return "LessThan" }
+func (ExprBoolean) String() string            { return "Boolean" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -167,6 +170,17 @@ type ExprGreaterThan struct {
 }
 
 func (e ExprGreaterThan) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprGreaterThanOrEqual represents an operation that checks if one expression is greater than or equal to another.
+type ExprGreaterThanOrEqual struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprGreaterThanOrEqual) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }
