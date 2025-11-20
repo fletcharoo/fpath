@@ -19,6 +19,7 @@ const (
 	TokenType_Slash
 	TokenType_Equals
 	TokenType_NotEquals
+	TokenType_GreaterThan
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -36,6 +37,7 @@ var (
 		TokenType_Slash:         "Slash",
 		TokenType_Equals:        "Equals",
 		TokenType_NotEquals:     "NotEquals",
+		TokenType_GreaterThan:   "GreaterThan",
 		TokenType_LeftParan:     "LeftParan",
 		TokenType_RightParan:    "RightParan",
 	}
@@ -190,6 +192,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			// Single ! is not supported, return error
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
 			return
+		case '>':
+			l.index++
+			return Token{
+				Type: TokenType_GreaterThan,
+			}, nil
 		case '(':
 			l.index++
 			return Token{
@@ -228,6 +235,7 @@ func (l *Lexer) PeekToken() (tok Token, err error) {
 func (l *Lexer) getTokenNumber() (tok Token, err error) {
 	tok.Type = TokenType_Number
 	var r rune
+	hasDecimalPoint := false
 
 	for {
 		r, err = l.peekRune()
@@ -243,6 +251,13 @@ func (l *Lexer) getTokenNumber() (tok Token, err error) {
 		if unicode.IsNumber(r) {
 			l.index++
 			tok.Value += string(r)
+			continue
+		}
+
+		if r == '.' && !hasDecimalPoint {
+			l.index++
+			tok.Value += string(r)
+			hasDecimalPoint = true
 			continue
 		}
 

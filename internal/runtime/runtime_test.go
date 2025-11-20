@@ -417,3 +417,156 @@ func Test_Eval_NotEquals_TypeErrors(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_GreaterThan(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"number greater than true": {
+			query:    "5 > 3",
+			expected: true,
+		},
+		"number greater than false": {
+			query:    "3 > 5",
+			expected: false,
+		},
+		"number greater than equal": {
+			query:    "5 > 5",
+			expected: false,
+		},
+		"decimal greater than true": {
+			query:    "5.5 > 5.3",
+			expected: true,
+		},
+		"decimal greater than false": {
+			query:    "5.3 > 5.5",
+			expected: false,
+		},
+		"string greater than true": {
+			query:    `"hello" > "world"`,
+			expected: false,
+		},
+		"string greater than lexicographic true": {
+			query:    `"world" > "hello"`,
+			expected: true,
+		},
+		"string greater than false": {
+			query:    `"hello" > "hello"`,
+			expected: false,
+		},
+		"empty string greater than false": {
+			query:    `"" > ""`,
+			expected: false,
+		},
+		"empty string greater than non-empty false": {
+			query:    `"" > "a"`,
+			expected: false,
+		},
+		"non-empty string greater than empty true": {
+			query:    `"a" > ""`,
+			expected: true,
+		},
+		"boolean greater than true": {
+			query:    "true > false",
+			expected: true,
+		},
+		"boolean greater than false": {
+			query:    "false > true",
+			expected: false,
+		},
+		"boolean greater than equal": {
+			query:    "true > true",
+			expected: false,
+		},
+		"boolean greater than equal false": {
+			query:    "false > false",
+			expected: false,
+		},
+		"complex expression greater than true": {
+			query:    "(2 + 3) > 4",
+			expected: true,
+		},
+		"complex expression greater than false": {
+			query:    "(2 + 3) > 5",
+			expected: false,
+		},
+		"greater than with multiplication": {
+			query:    "11 > 2 * 5",
+			expected: true,
+		},
+		"greater than with division": {
+			query:    "6 > 10 / 2",
+			expected: true,
+		},
+		"greater than with subtraction": {
+			query:    "4 > 5 - 2",
+			expected: true,
+		},
+		"greater than with parentheses": {
+			query:    "(5 > 3) == true",
+			expected: true,
+		},
+		"large number greater than true": {
+			query:    "1000 > 500",
+			expected: true,
+		},
+		"large number greater than false": {
+			query:    "500 > 1000",
+			expected: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_GreaterThan_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"number > string": {
+			query: `5 > "5"`,
+		},
+		"string > number": {
+			query: `"5" > 5`,
+		},
+		"boolean > number": {
+			query: `true > 5`,
+		},
+		"number > boolean": {
+			query: `5 > false`,
+		},
+		"boolean > string": {
+			query: `true > "hello"`,
+		},
+		"string > boolean": {
+			query: `"hello" > false`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+		})
+	}
+}
