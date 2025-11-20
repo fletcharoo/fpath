@@ -183,7 +183,7 @@ func Test_Eval_String_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -211,7 +211,7 @@ func Test_Eval_DivideByZero(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for division by zero")
-			require.Contains(t, err.Error(), "division by zero", "Error message should mention division by zero")
+			require.ErrorIs(t, err, runtime.ErrDivisionByZero, "Error should be ErrDivisionByZero")
 		})
 	}
 }
@@ -304,7 +304,7 @@ func Test_Eval_Equals_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -413,7 +413,7 @@ func Test_Eval_NotEquals_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -566,7 +566,7 @@ func Test_Eval_GreaterThan_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -719,7 +719,7 @@ func Test_Eval_LessThan_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -968,7 +968,7 @@ func Test_Eval_GreaterThanOrEqual_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -1226,7 +1226,7 @@ func Test_Eval_LessThanOrEqual_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }
@@ -1476,7 +1476,7 @@ func Test_Eval_And_TypeErrors(t *testing.T) {
 
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for type mismatch")
-			require.Contains(t, err.Error(), "AND operation requires boolean expressions", "Error message should mention AND operation requires boolean expressions")
+			require.ErrorIs(t, err, runtime.ErrBooleanOperation, "Error should be ErrBooleanOperation")
 		})
 	}
 }

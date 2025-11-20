@@ -15,6 +15,38 @@
 - `internal/runtime/runtime.go`: Expression evaluator that executes parsed AST against input data
 - `internal/shared.go`: Utility functions for path-based data lookup in nested structures
 
+## Development Standards
+
+### Error Handling in Tests
+This project follows strict error handling standards to ensure test reliability and maintainability:
+
+#### Error Type Definitions
+- Export specific error types for common error conditions
+- Define errors in the relevant package (e.g., `runtime.ErrIncompatibleTypes`, `parser.ErrInvalidDecode`)
+- Use `errors.New()` for base errors and `fmt.Errorf("%w: ...")` for wrapped errors with context
+
+#### Test Error Validation
+- **NEVER** use string-based error checking like `require.Contains(t, err.Error(), "error text")`
+- **ALWAYS** use type-based error checking with `require.ErrorIs(t, err, ExpectedErrorType)`
+- This makes tests less fragile when error messages change or additional context is added
+
+#### Examples
+```go
+// ❌ BAD - Fragile string matching
+require.Contains(t, err.Error(), "incompatible types")
+
+// ✅ GOOD - Type-based checking  
+require.ErrorIs(t, err, runtime.ErrIncompatibleTypes)
+```
+
+#### Current Error Types
+- `runtime.ErrIncompatibleTypes`: Type mismatch errors in operations
+- `runtime.ErrDivisionByZero`: Division by zero errors
+- `runtime.ErrBooleanOperation`: Invalid boolean operation errors
+- `parser.ErrInvalidDecode`: Expression decoding errors
+- `parser.ErrUndefinedToken`: Undefined token errors
+- `parser.ErrExpectedToken`: Missing expected token errors
+
 ## Project Structure
 ```
 fpath/

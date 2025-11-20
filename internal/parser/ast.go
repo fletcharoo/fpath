@@ -26,7 +26,11 @@ const (
 	ExprType_Boolean
 )
 
-var errInvalidDecode = errors.New("cannot decode expression")
+var (
+	ErrInvalidDecode  = errors.New("cannot decode expression")
+	ErrUndefinedToken = errors.New("undefined token")
+	ErrExpectedToken  = errors.New("expected token")
+)
 
 // Expr represents an evaluable expression.
 type Expr interface {
@@ -74,7 +78,7 @@ type ExprBlock struct {
 }
 
 func (e ExprBlock) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -110,7 +114,7 @@ type ExprAdd struct {
 }
 
 func (e ExprAdd) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -121,7 +125,7 @@ type ExprSubtract struct {
 }
 
 func (e ExprSubtract) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -132,7 +136,7 @@ type ExprMultiply struct {
 }
 
 func (e ExprMultiply) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -143,7 +147,7 @@ type ExprDivide struct {
 }
 
 func (e ExprDivide) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -154,7 +158,7 @@ type ExprEquals struct {
 }
 
 func (e ExprEquals) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -165,7 +169,7 @@ type ExprNotEquals struct {
 }
 
 func (e ExprNotEquals) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -176,7 +180,7 @@ type ExprGreaterThan struct {
 }
 
 func (e ExprGreaterThan) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -187,7 +191,7 @@ type ExprGreaterThanOrEqual struct {
 }
 
 func (e ExprGreaterThanOrEqual) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -198,7 +202,7 @@ type ExprLessThan struct {
 }
 
 func (e ExprLessThan) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -209,7 +213,7 @@ type ExprLessThanOrEqual struct {
 }
 
 func (e ExprLessThanOrEqual) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 
@@ -220,7 +224,7 @@ type ExprAnd struct {
 }
 
 func (e ExprAnd) Decode() (result any, err error) {
-	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
 

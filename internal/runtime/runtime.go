@@ -1,9 +1,16 @@
 package runtime
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/fletcharoo/fpath/internal/parser"
+)
+
+var (
+	ErrIncompatibleTypes = errors.New("incompatible types")
+	ErrDivisionByZero    = errors.New("division by zero")
+	ErrBooleanOperation  = errors.New("AND operation requires boolean expressions")
 )
 
 type evalFunc func(parser.Expr, any) (parser.Expr, error)
@@ -92,7 +99,7 @@ func evalAdd(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -194,7 +201,7 @@ func evalSubtract(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -252,7 +259,7 @@ func evalMultiply(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -330,7 +337,7 @@ func evalDivide(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -360,7 +367,7 @@ func evalDivideNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) 
 
 	// Check for division by zero
 	if expr2Number.Value.IsZero() {
-		err = fmt.Errorf("division by zero")
+		err = ErrDivisionByZero
 		return
 	}
 
@@ -394,7 +401,7 @@ func evalEquals(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -503,7 +510,7 @@ func evalNotEquals(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -612,7 +619,7 @@ func evalGreaterThan(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -721,7 +728,7 @@ func evalLessThan(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -830,7 +837,7 @@ func evalLessThanOrEqual(expr parser.Expr, input any) (ret parser.Expr, err erro
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -939,7 +946,7 @@ func evalGreaterThanOrEqual(expr parser.Expr, input any) (ret parser.Expr, err e
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != expr2Type {
-		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
 		return
 	}
 
@@ -1059,7 +1066,7 @@ func evalAnd(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	expr1Type := expr1.Type()
 	expr2Type := expr2.Type()
 	if expr1Type != parser.ExprType_Boolean || expr2Type != parser.ExprType_Boolean {
-		err = fmt.Errorf("AND operation requires boolean expressions, got %s and %s", expr1, expr2)
+		err = fmt.Errorf("%w: got %s and %s", ErrBooleanOperation, expr1, expr2)
 		return
 	}
 

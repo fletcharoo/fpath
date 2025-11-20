@@ -108,7 +108,7 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 // parseUndefined parses an undefined token.
 // parseUndefined implements parseFunc.
 func parseUndefined(_ *Parser, tok lexer.Token) (expr Expr, err error) {
-	err = fmt.Errorf("undefined token: %v", tok.Value)
+	err = fmt.Errorf("%w: %v", ErrUndefinedToken, tok.Value)
 	return
 }
 
@@ -128,7 +128,7 @@ func parseBlock(p *Parser, _ lexer.Token) (expr Expr, err error) {
 	}
 
 	if tok.Type != lexer.TokenType_RightParan {
-		err = fmt.Errorf("expected RightParan, got %s", tok)
+		err = fmt.Errorf("%w RightParan, got %s", ErrExpectedToken, tok)
 		return
 	}
 

@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/fletcharoo/fpath/internal/lexer"
@@ -389,9 +390,8 @@ func Test_parseUndefined(t *testing.T) {
 		t.Fatalf("Expected nil expression, got %v", expr)
 	}
 
-	expectedErr := "undefined token: test"
-	if err.Error() != expectedErr {
-		t.Fatalf("Expected error: %s, got: %s", expectedErr, err.Error())
+	if !errors.Is(err, ErrUndefinedToken) {
+		t.Fatalf("Expected ErrUndefinedToken, got: %s", err.Error())
 	}
 }
 
@@ -424,9 +424,8 @@ func Test_parseBlock(t *testing.T) {
 				if err == nil {
 					t.Fatalf("Error expected but not returned")
 				}
-				expectedErr := "expected RightParan, got Undefined"
-				if err.Error() != expectedErr {
-					t.Fatalf("Expected error: %s, got: %s", expectedErr, err.Error())
+				if !errors.Is(err, ErrExpectedToken) {
+					t.Fatalf("Expected ErrExpectedToken, got: %s", err.Error())
 				}
 			},
 		},
@@ -653,8 +652,8 @@ func Test_Expr_Decode(t *testing.T) {
 				if err == nil {
 					t.Fatalf("Error expected but not returned")
 				}
-				if err.Error() != errInvalidDecode.Error() && err.Error()[:len(errInvalidDecode.Error())] != errInvalidDecode.Error() {
-					t.Fatalf("Expected invalid decode error, got: %s", err.Error())
+				if !errors.Is(err, ErrInvalidDecode) {
+					t.Fatalf("Expected ErrInvalidDecode, got: %s", err.Error())
 				}
 			} else {
 				if err != nil {
