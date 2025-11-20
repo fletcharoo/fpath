@@ -31,6 +31,34 @@ func Test_Eval(t *testing.T) {
 			query:    "2 + ((5 * 10) * 2) + 2",
 			expected: 104.0,
 		},
+		"subtract": {
+			query:    "5 - 2",
+			expected: 3.0,
+		},
+		"subtract left-associative": {
+			query:    "10 - 3 - 2",
+			expected: 5.0,
+		},
+		"subtract with addition": {
+			query:    "(5 + 3) - 2",
+			expected: 6.0,
+		},
+		"subtract nested": {
+			query:    "10 - (2 + 3)",
+			expected: 5.0,
+		},
+		"subtract with multiplication": {
+			query:    "10 - 2 * 3",
+			expected: 4.0,
+		},
+		"subtract negative result": {
+			query:    "2 - 5",
+			expected: -3.0,
+		},
+		"subtract zero": {
+			query:    "5 - 5",
+			expected: 0.0,
+		},
 	}
 
 	for name, tc := range testCases {

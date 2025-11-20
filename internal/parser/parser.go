@@ -26,6 +26,7 @@ func init() {
 
 	operatorMap = map[int]operatorFunc{
 		lexer.TokenType_Plus:     operatorAdd,
+		lexer.TokenType_Minus:    operatorSubtract,
 		lexer.TokenType_Asterisk: operatorMultiply,
 	}
 }
@@ -147,8 +148,17 @@ func operatorAdd(expr1 Expr, expr2 Expr) (op Expr) {
 	}
 }
 
-// operatorAdd wraps two expressions in an add expression.
-// operatorAdd implements operatorFunc.
+// operatorSubtract wraps two expressions in a subtract expression.
+// operatorSubtract implements operatorFunc.
+func operatorSubtract(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprSubtract{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorMultiply wraps two expressions in an add expression.
+// operatorMultiply implements operatorFunc.
 func operatorMultiply(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprMultiply{
 		Expr1: expr1,

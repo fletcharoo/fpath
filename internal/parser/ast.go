@@ -12,6 +12,7 @@ const (
 	ExprType_Block
 	ExprType_Number
 	ExprType_Add
+	ExprType_Subtract
 	ExprType_Multiply
 )
 
@@ -28,11 +29,13 @@ type Expr interface {
 func (ExprBlock) Type() int    { return ExprType_Block }
 func (ExprNumber) Type() int   { return ExprType_Number }
 func (ExprAdd) Type() int      { return ExprType_Add }
+func (ExprSubtract) Type() int { return ExprType_Subtract }
 func (ExprMultiply) Type() int { return ExprType_Multiply }
 
 func (ExprBlock) String() string    { return "Block" }
 func (ExprNumber) String() string   { return "Number" }
 func (ExprAdd) String() string      { return "Add" }
+func (ExprSubtract) String() string { return "Subtract" }
 func (ExprMultiply) String() string { return "Multiply" }
 
 // ExprBlock represents a grouped expression.
@@ -67,6 +70,17 @@ type ExprAdd struct {
 }
 
 func (e ExprAdd) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprSubtract represents an operation that subtracts two expressions.
+type ExprSubtract struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprSubtract) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }
