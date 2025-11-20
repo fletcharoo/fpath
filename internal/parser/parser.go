@@ -34,6 +34,7 @@ func init() {
 		lexer.TokenType_Equals:      operatorEquals,
 		lexer.TokenType_NotEquals:   operatorNotEquals,
 		lexer.TokenType_GreaterThan: operatorGreaterThan,
+		lexer.TokenType_LessThan:    operatorLessThan,
 	}
 }
 
@@ -223,6 +224,15 @@ func operatorNotEquals(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorGreaterThan implements operatorFunc.
 func operatorGreaterThan(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprGreaterThan{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorLessThan wraps two expressions in a less than expression.
+// operatorLessThan implements operatorFunc.
+func operatorLessThan(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprLessThan{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

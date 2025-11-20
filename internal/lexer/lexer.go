@@ -20,6 +20,7 @@ const (
 	TokenType_Equals
 	TokenType_NotEquals
 	TokenType_GreaterThan
+	TokenType_LessThan
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -38,10 +39,13 @@ var (
 		TokenType_Equals:        "Equals",
 		TokenType_NotEquals:     "NotEquals",
 		TokenType_GreaterThan:   "GreaterThan",
+		TokenType_LessThan:      "LessThan",
 		TokenType_LeftParan:     "LeftParan",
 		TokenType_RightParan:    "RightParan",
 	}
+)
 
+var (
 	errUnexpectedEOF = errors.New("unexpected EOF")
 	errInvalidRune   = errors.New("invalid rune")
 )
@@ -196,6 +200,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_GreaterThan,
+			}, nil
+		case '<':
+			l.index++
+			return Token{
+				Type: TokenType_LessThan,
 			}, nil
 		case '(':
 			l.index++

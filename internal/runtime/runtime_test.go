@@ -570,3 +570,240 @@ func Test_Eval_GreaterThan_TypeErrors(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_LessThan(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"number less than true": {
+			query:    "3 < 5",
+			expected: true,
+		},
+		"number less than false": {
+			query:    "5 < 3",
+			expected: false,
+		},
+		"number less than equal": {
+			query:    "5 < 5",
+			expected: false,
+		},
+		"decimal less than true": {
+			query:    "5.3 < 5.5",
+			expected: true,
+		},
+		"decimal less than false": {
+			query:    "5.5 < 5.3",
+			expected: false,
+		},
+		"string less than true": {
+			query:    `"hello" < "world"`,
+			expected: true,
+		},
+		"string less than lexicographic false": {
+			query:    `"world" < "hello"`,
+			expected: false,
+		},
+		"string less than false": {
+			query:    `"hello" < "hello"`,
+			expected: false,
+		},
+		"empty string less than false": {
+			query:    `"" < ""`,
+			expected: false,
+		},
+		"empty string less than non-empty true": {
+			query:    `"" < "a"`,
+			expected: true,
+		},
+		"non-empty string less than empty false": {
+			query:    `"a" < ""`,
+			expected: false,
+		},
+		"boolean less than true": {
+			query:    "false < true",
+			expected: true,
+		},
+		"boolean less than false": {
+			query:    "true < false",
+			expected: false,
+		},
+		"boolean less than equal": {
+			query:    "true < true",
+			expected: false,
+		},
+		"boolean less than equal false": {
+			query:    "false < false",
+			expected: false,
+		},
+		"complex expression less than true": {
+			query:    "(2 + 3) < 6",
+			expected: true,
+		},
+		"complex expression less than false": {
+			query:    "(2 + 3) < 5",
+			expected: false,
+		},
+		"less than with multiplication": {
+			query:    "9 < 2 * 5",
+			expected: true,
+		},
+		"less than with division": {
+			query:    "4 < 10 / 2",
+			expected: true,
+		},
+		"less than with subtraction": {
+			query:    "2 < 5 - 2",
+			expected: true,
+		},
+		"less than with parentheses": {
+			query:    "(3 < 5) == true",
+			expected: true,
+		},
+		"large number less than true": {
+			query:    "500 < 1000",
+			expected: true,
+		},
+		"large number less than false": {
+			query:    "1000 < 500",
+			expected: false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_LessThan_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"number < string": {
+			query: `5 < "5"`,
+		},
+		"string < number": {
+			query: `"5" < 5`,
+		},
+		"boolean < number": {
+			query: `true < 5`,
+		},
+		"number < boolean": {
+			query: `5 < false`,
+		},
+		"boolean < string": {
+			query: `true < "hello"`,
+		},
+		"string < boolean": {
+			query: `"hello" < false`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+		})
+	}
+}
+
+func Test_Eval_LessThan_ComplexExpressions(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected bool
+	}{
+		"less than with addition": {
+			query:    "5 < 3 + 3",
+			expected: true,
+		},
+		"less than with subtraction": {
+			query:    "5 < 10 - 3",
+			expected: true,
+		},
+		"less than with multiplication": {
+			query:    "5 < 2 * 3",
+			expected: true,
+		},
+		"less than with division": {
+			query:    "5 < 12 / 2",
+			expected: true,
+		},
+		"less than with nested operations": {
+			query:    "5 < (2 + 3) * 2",
+			expected: true,
+		},
+		"less than with complex parentheses": {
+			query:    "(5 + 3) < (10 - 1)",
+			expected: true,
+		},
+		"less than with multiple operations": {
+			query:    "5 < 2 + 3 + 1",
+			expected: true,
+		},
+		"less than with mixed operations": {
+			query:    "3 < 10 / (2 + 1)",
+			expected: true,
+		},
+		"less than with equals": {
+			query:    "(5 < 10) == true",
+			expected: true,
+		},
+		"less than with not equals": {
+			query:    "(5 < 10) != false",
+			expected: true,
+		},
+		"less than with greater than": {
+			query:    "(5 < 10) == (1 > 0)",
+			expected: true,
+		},
+		"less than string concatenation": {
+			query:    `"a" < "a" + "b"`,
+			expected: true,
+		},
+		"less than with string operations": {
+			query:    `"hello" < "hello" + " world"`,
+			expected: true,
+		},
+		"less than boolean expression": {
+			query:    "false < (5 < 10)",
+			expected: true,
+		},
+		"less than with boolean result": {
+			query:    "(5 < 10) == true",
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}

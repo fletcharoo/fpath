@@ -24,6 +24,7 @@ func init() {
 		parser.ExprType_Equals:      evalEquals,
 		parser.ExprType_NotEquals:   evalNotEquals,
 		parser.ExprType_GreaterThan: evalGreaterThan,
+		parser.ExprType_LessThan:    evalLessThan,
 	}
 }
 
@@ -689,6 +690,115 @@ func evalGreaterThanBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err e
 
 	resultBoolean := parser.ExprBoolean{
 		Value: isGreater,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalLessThan accepts a parser.ExprLessThan expression and performs the less than comparison.
+func evalLessThan(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprLessThan, ok := expr.(parser.ExprLessThan)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as less than")
+		return
+	}
+
+	expr1, err := Eval(exprLessThan.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprLessThan.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalLessThanNumber(expr1, expr2)
+	case parser.ExprType_String:
+		return evalLessThanString(expr1, expr2)
+	case parser.ExprType_Boolean:
+		return evalLessThanBoolean(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid less than type: %s", expr1)
+		return
+	}
+}
+
+// evalLessThanNumber accepts two parser.ExprNumber expressions and compares them for less than.
+func evalLessThanNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	isLess := expr1Number.Value.LessThan(expr2Number.Value)
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isLess,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalLessThanString accepts two parser.ExprString expressions and compares them for less than.
+func evalLessThanString(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1String, ok := expr1.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as string")
+		return
+	}
+
+	expr2String, ok := expr2.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as string")
+		return
+	}
+
+	isLess := expr1String.Value < expr2String.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isLess,
+	}
+
+	return resultBoolean, nil
+}
+
+// evalLessThanBoolean accepts two parser.ExprBoolean expressions and compares them for less than.
+func evalLessThanBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Boolean, ok := expr1.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as boolean")
+		return
+	}
+
+	expr2Boolean, ok := expr2.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as boolean")
+		return
+	}
+
+	isLess := !expr1Boolean.Value && expr2Boolean.Value
+
+	resultBoolean := parser.ExprBoolean{
+		Value: isLess,
 	}
 
 	return resultBoolean, nil

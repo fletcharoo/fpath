@@ -192,6 +192,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_NotEquals},
 			},
 		},
+		"LessThan": {
+			input: "<",
+			expectedTokens: []Token{
+				{Type: TokenType_LessThan},
+			},
+		},
 	}
 
 	for name, tc := range testCases {
