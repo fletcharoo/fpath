@@ -15,6 +15,7 @@ const (
 	TokenType_Plus
 	TokenType_Minus
 	TokenType_Asterisk
+	TokenType_Slash
 	TokenType_LeftParan
 	TokenType_RightParan
 )
@@ -28,6 +29,7 @@ var (
 		TokenType_Plus:          "Plus",
 		TokenType_Minus:         "Minus",
 		TokenType_Asterisk:      "Asterisk",
+		TokenType_Slash:         "Slash",
 		TokenType_LeftParan:     "LeftParan",
 		TokenType_RightParan:    "RightParan",
 	}
@@ -150,6 +152,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_Asterisk,
+			}, nil
+		case '/':
+			l.index++
+			return Token{
+				Type: TokenType_Slash,
 			}, nil
 		case '(':
 			l.index++

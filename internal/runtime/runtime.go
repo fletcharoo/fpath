@@ -18,6 +18,7 @@ func init() {
 		parser.ExprType_Add:       evalAdd,
 		parser.ExprType_Subtract:  evalSubtract,
 		parser.ExprType_Multiply:  evalMultiply,
+		parser.ExprType_Divide:    evalDivide,
 	}
 }
 
@@ -243,6 +244,90 @@ func evalMultiplyNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error
 
 	resultNumber := parser.ExprNumber{
 		Value: expr1Number.Value.Mul(expr2Number.Value),
+	}
+
+	return resultNumber, nil
+}
+
+// evalDivide accepts a parser.ExprDivide expression and performs the operation.
+func evalDivide(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprDivide, ok := expr.(parser.ExprDivide)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as divide")
+		return
+	}
+
+	// Handle left-associativity for chained division
+	// If the second expression is also a divide, we need to evaluate left-to-right
+	if nestedDivide, isNested := exprDivide.Expr2.(parser.ExprDivide); isNested {
+		// Evaluate (a / (b / c)) as ((a / b) / c)
+		// First evaluate a / b
+		leftResult, err := evalDivide(parser.ExprDivide{
+			Expr1: exprDivide.Expr1,
+			Expr2: nestedDivide.Expr1,
+		}, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate left part of chained division: %w", err)
+		}
+
+		// Then evaluate (a / b) / c
+		return evalDivide(parser.ExprDivide{
+			Expr1: leftResult,
+			Expr2: nestedDivide.Expr2,
+		}, input)
+	}
+
+	expr1, err := Eval(exprDivide.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprDivide.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("incompatible types: %s and %s", expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalDivideNumber(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid divide type: %s", expr1)
+		return
+	}
+}
+
+// evalDivideNumber accepts two parser.ExprNumber expressions and divides
+// the first by the second.
+func evalDivideNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	// Check for division by zero
+	if expr2Number.Value.IsZero() {
+		err = fmt.Errorf("division by zero")
+		return
+	}
+
+	resultNumber := parser.ExprNumber{
+		Value: expr1Number.Value.Div(expr2Number.Value),
 	}
 
 	return resultNumber, nil

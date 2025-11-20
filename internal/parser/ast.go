@@ -14,6 +14,7 @@ const (
 	ExprType_Add
 	ExprType_Subtract
 	ExprType_Multiply
+	ExprType_Divide
 )
 
 var errInvalidDecode = errors.New("cannot decode expression")
@@ -31,12 +32,14 @@ func (ExprNumber) Type() int   { return ExprType_Number }
 func (ExprAdd) Type() int      { return ExprType_Add }
 func (ExprSubtract) Type() int { return ExprType_Subtract }
 func (ExprMultiply) Type() int { return ExprType_Multiply }
+func (ExprDivide) Type() int   { return ExprType_Divide }
 
 func (ExprBlock) String() string    { return "Block" }
 func (ExprNumber) String() string   { return "Number" }
 func (ExprAdd) String() string      { return "Add" }
 func (ExprSubtract) String() string { return "Subtract" }
 func (ExprMultiply) String() string { return "Multiply" }
+func (ExprDivide) String() string   { return "Divide" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -92,6 +95,17 @@ type ExprMultiply struct {
 }
 
 func (e ExprMultiply) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
+	return
+}
+
+// ExprDivide represents an operation that divides two expressions.
+type ExprDivide struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprDivide) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", errInvalidDecode, e)
 	return
 }

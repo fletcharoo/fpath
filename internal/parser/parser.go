@@ -28,6 +28,7 @@ func init() {
 		lexer.TokenType_Plus:     operatorAdd,
 		lexer.TokenType_Minus:    operatorSubtract,
 		lexer.TokenType_Asterisk: operatorMultiply,
+		lexer.TokenType_Slash:    operatorDivide,
 	}
 }
 
@@ -161,6 +162,15 @@ func operatorSubtract(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorMultiply implements operatorFunc.
 func operatorMultiply(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprMultiply{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorDivide wraps two expressions in a divide expression.
+// operatorDivide implements operatorFunc.
+func operatorDivide(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprDivide{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

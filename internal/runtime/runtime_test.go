@@ -59,6 +59,43 @@ func Test_Eval(t *testing.T) {
 			query:    "5 - 5",
 			expected: 0.0,
 		},
+		"divide": {
+			query:    "10 / 2",
+			expected: 5.0,
+		},
+		"divide decimal result": {
+			query:    "7 / 2",
+			expected: 3.5,
+		},
+		"divide with addition": {
+			query:    "(10 + 5) / 3",
+			expected: 5.0,
+		},
+		"divide with multiplication": {
+			query:    "20 / (2 * 2)",
+			expected: 5.0,
+		},
+		"divide with subtraction": {
+			query:    "15 / (10 - 5)",
+			expected: 3.0,
+		},
+		"divide complex expression": {
+			query:    "(10 + 5) / (2 + 1)",
+			expected: 5.0,
+		},
+
+		"divide left-associative": {
+			query:    "100 / 10 / 2",
+			expected: 5.0,
+		},
+		"divide by one": {
+			query:    "7 / 1",
+			expected: 7.0,
+		},
+		"divide same numbers": {
+			query:    "8 / 8",
+			expected: 1.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -67,13 +104,41 @@ func Test_Eval(t *testing.T) {
 			expr, err := parser.New(lex).Parse()
 			require.NoError(t, err, "Unexpected parser error")
 
-			result, err := runtime.Eval(expr, err)
+			result, err := runtime.Eval(expr, nil)
 			require.NoError(t, err, "Unexpected runtime error")
 
 			resultDecoded, err := result.Decode()
 			require.NoError(t, err, "Failed to decode result")
 
 			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_DivideByZero(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"divide by zero": {
+			query: "10 / 0",
+		},
+		"divide by zero in complex expression": {
+			query: "(10 + 5) / (5 - 5)",
+		},
+		"divide by zero with multiplication": {
+			query: "10 / (2 * 0)",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for division by zero")
+			require.Contains(t, err.Error(), "division by zero", "Error message should mention division by zero")
 		})
 	}
 }
