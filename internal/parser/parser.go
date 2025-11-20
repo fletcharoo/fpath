@@ -19,9 +19,10 @@ var operatorMap map[int]operatorFunc
 
 func init() {
 	parseMap = map[int]parseFunc{
-		lexer.TokenType_Undefined: parseUndefined,
-		lexer.TokenType_LeftParan: parseBlock,
-		lexer.TokenType_Number:    parseNumber,
+		lexer.TokenType_Undefined:     parseUndefined,
+		lexer.TokenType_LeftParan:     parseBlock,
+		lexer.TokenType_Number:        parseNumber,
+		lexer.TokenType_StringLiteral: parseString,
 	}
 
 	operatorMap = map[int]operatorFunc{
@@ -138,6 +139,16 @@ func parseNumber(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	}
 
 	return exprNumber, nil
+}
+
+// parseString parses a string literal token.
+// parseString implements parseFunc.
+func parseString(_ *Parser, tok lexer.Token) (expr Expr, err error) {
+	exprString := ExprString{
+		Value: tok.Value,
+	}
+
+	return exprString, nil
 }
 
 // operatorAdd wraps two expressions in an add expression.

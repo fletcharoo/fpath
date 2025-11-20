@@ -11,6 +11,7 @@ const (
 	ExprType_Undefined = iota
 	ExprType_Block
 	ExprType_Number
+	ExprType_String
 	ExprType_Add
 	ExprType_Subtract
 	ExprType_Multiply
@@ -29,6 +30,7 @@ type Expr interface {
 
 func (ExprBlock) Type() int    { return ExprType_Block }
 func (ExprNumber) Type() int   { return ExprType_Number }
+func (ExprString) Type() int   { return ExprType_String }
 func (ExprAdd) Type() int      { return ExprType_Add }
 func (ExprSubtract) Type() int { return ExprType_Subtract }
 func (ExprMultiply) Type() int { return ExprType_Multiply }
@@ -36,6 +38,7 @@ func (ExprDivide) Type() int   { return ExprType_Divide }
 
 func (ExprBlock) String() string    { return "Block" }
 func (ExprNumber) String() string   { return "Number" }
+func (ExprString) String() string   { return "String" }
 func (ExprAdd) String() string      { return "Add" }
 func (ExprSubtract) String() string { return "Subtract" }
 func (ExprMultiply) String() string { return "Multiply" }
@@ -63,6 +66,16 @@ func (e ExprNumber) Decode() (result any, err error) {
 		return
 	}
 
+	return result, nil
+}
+
+// ExprString represents a string literal.
+type ExprString struct {
+	Value string
+}
+
+func (e ExprString) Decode() (result any, err error) {
+	result = e.Value
 	return result, nil
 }
 

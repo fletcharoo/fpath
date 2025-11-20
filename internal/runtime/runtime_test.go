@@ -115,6 +115,79 @@ func Test_Eval(t *testing.T) {
 	}
 }
 
+func Test_Eval_String(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected string
+	}{
+		"string literal": {
+			query:    `"hello"`,
+			expected: "hello",
+		},
+		"empty string": {
+			query:    `""`,
+			expected: "",
+		},
+		"string with spaces": {
+			query:    `"hello world"`,
+			expected: "hello world",
+		},
+		"string concatenation": {
+			query:    `"hello" + " world"`,
+			expected: "hello world",
+		},
+		"string concatenation multiple": {
+			query:    `"a" + "b" + "c"`,
+			expected: "abc",
+		},
+		"string concatenation with empty": {
+			query:    `"hello" + "" + "world"`,
+			expected: "helloworld",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_String_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"string + number": {
+			query: `"hello" + 5`,
+		},
+		"number + string": {
+			query: `5 + "hello"`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.Contains(t, err.Error(), "incompatible types", "Error message should mention incompatible types")
+		})
+	}
+}
+
 func Test_Eval_DivideByZero(t *testing.T) {
 	testCases := map[string]struct {
 		query string

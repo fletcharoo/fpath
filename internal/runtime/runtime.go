@@ -15,6 +15,7 @@ func init() {
 		parser.ExprType_Undefined: evalUndefined,
 		parser.ExprType_Block:     evalBlock,
 		parser.ExprType_Number:    evalLiteral,
+		parser.ExprType_String:    evalString,
 		parser.ExprType_Add:       evalAdd,
 		parser.ExprType_Subtract:  evalSubtract,
 		parser.ExprType_Multiply:  evalMultiply,
@@ -41,6 +42,11 @@ func evalUndefined(_ parser.Expr, _ any) (ret parser.Expr, err error) {
 
 // evalLiteral returns the expression passed into it.
 func evalLiteral(expr parser.Expr, _ any) (ret parser.Expr, err error) {
+	return expr, nil
+}
+
+// evalString returns the string expression passed into it.
+func evalString(expr parser.Expr, _ any) (ret parser.Expr, err error) {
 	return expr, nil
 }
 
@@ -85,6 +91,8 @@ func evalAdd(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	switch expr1Type {
 	case parser.ExprType_Number:
 		return evalAddNumber(expr1, expr2)
+	case parser.ExprType_String:
+		return evalAddString(expr1, expr2)
 	default:
 		err = fmt.Errorf("invalid add type: %s", expr1)
 		return
@@ -111,6 +119,28 @@ func evalAddNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
 	}
 
 	return resultNumber, nil
+}
+
+// evalAddString accepts two parser.ExprString expressions and concatenates
+// them together.
+func evalAddString(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1String, ok := expr1.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as string")
+		return
+	}
+
+	expr2String, ok := expr2.(parser.ExprString)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as string")
+		return
+	}
+
+	resultString := parser.ExprString{
+		Value: expr1String.Value + expr2String.Value,
+	}
+
+	return resultString, nil
 }
 
 // evalSubtract accepts a parser.ExprSubtract expression and performs the operation.
