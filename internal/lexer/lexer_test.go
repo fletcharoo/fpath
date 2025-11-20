@@ -387,3 +387,244 @@ func Test_Lexer_getTokenStringLiteral_UnexpectedEOF(t *testing.T) {
 		t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", errUnexpectedEOF, err)
 	}
 }
+
+func Test_Token_String(t *testing.T) {
+	testCases := map[string]struct {
+		token    Token
+		expected string
+	}{
+		"Number": {
+			token:    Token{Type: TokenType_Number, Value: "123"},
+			expected: "Number",
+		},
+		"Label": {
+			token:    Token{Type: TokenType_Label, Value: "test"},
+			expected: "Label",
+		},
+		"Undefined": {
+			token:    Token{Type: TokenType_Undefined, Value: ""},
+			expected: "Undefined",
+		},
+		"Invalid type": {
+			token:    Token{Type: 999, Value: ""},
+			expected: "Undefined",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			result := tc.token.String()
+			if result != tc.expected {
+				t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", tc.expected, result)
+			}
+		})
+	}
+}
+
+func Test_New(t *testing.T) {
+	input := "test input"
+	lexer := New(input)
+
+	if lexer.input == nil {
+		t.Fatalf("Expected input to be initialized")
+	}
+
+	if string(lexer.input) != input {
+		t.Fatalf("Unexpected input\nExpected: %s\nActual: %s", input, string(lexer.input))
+	}
+
+	if lexer.index != 0 {
+		t.Fatalf("Unexpected index\nExpected: 0\nActual: %d", lexer.index)
+	}
+
+	if lexer.buf != nil {
+		t.Fatalf("Expected buffer to be nil")
+	}
+}
+
+func Test_Lexer_getTokenNumber(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		expected Token
+	}{
+		"Integer": {
+			input:    "123",
+			expected: Token{Type: TokenType_Number, Value: "123"},
+		},
+		"Decimal": {
+			input:    "123.45",
+			expected: Token{Type: TokenType_Number, Value: "123.45"},
+		},
+		"Leading zero": {
+			input:    "0123",
+			expected: Token{Type: TokenType_Number, Value: "0123"},
+		},
+		"Zero decimal": {
+			input:    "0.5",
+			expected: Token{Type: TokenType_Number, Value: "0.5"},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lexer := New(tc.input)
+			result, err := lexer.getTokenNumber()
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := _tokensMatch(tc.expected, result); err != nil {
+				t.Fatalf("Unexpected result: %s", err)
+			}
+		})
+	}
+}
+
+func Test_Lexer_getTokenLabel(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		expected Token
+	}{
+		"Simple label": {
+			input:    "test",
+			expected: Token{Type: TokenType_Label, Value: "test"},
+		},
+		"With underscore": {
+			input:    "test_label",
+			expected: Token{Type: TokenType_Label, Value: "test_label"},
+		},
+		"With numbers": {
+			input:    "test123",
+			expected: Token{Type: TokenType_Label, Value: "test123"},
+		},
+		"Boolean true": {
+			input:    "true",
+			expected: Token{Type: TokenType_Boolean, Value: "true"},
+		},
+		"Boolean false": {
+			input:    "false",
+			expected: Token{Type: TokenType_Boolean, Value: "false"},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lexer := New(tc.input)
+			result, err := lexer.getTokenLabel()
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := _tokensMatch(tc.expected, result); err != nil {
+				t.Fatalf("Unexpected result: %s", err)
+			}
+		})
+	}
+}
+
+func Test_Lexer_getTokenStringLiteral(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		expected Token
+	}{
+		"Simple string": {
+			input:    "hello\"",
+			expected: Token{Type: TokenType_StringLiteral, Value: "hello"},
+		},
+		"Empty string": {
+			input:    "\"",
+			expected: Token{Type: TokenType_StringLiteral, Value: ""},
+		},
+		"With spaces": {
+			input:    "hello world\"",
+			expected: Token{Type: TokenType_StringLiteral, Value: "hello world"},
+		},
+		"With special chars": {
+			input:    "hello!@#$%^&*()\"",
+			expected: Token{Type: TokenType_StringLiteral, Value: "hello!@#$%^&*()"},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lexer := New(tc.input)
+			result, err := lexer.getTokenStringLiteral()
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := _tokensMatch(tc.expected, result); err != nil {
+				t.Fatalf("Unexpected result: %s", err)
+			}
+		})
+	}
+}
+
+func Test_Lexer_getTokenStringLiteral_EOF(t *testing.T) {
+	input := "hello world"
+	lexer := New(input)
+
+	_, err := lexer.getTokenStringLiteral()
+
+	if err == nil {
+		t.Fatalf("Error expected but not returned")
+	}
+
+	if !errors.Is(err, errUnexpectedEOF) {
+		t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", errUnexpectedEOF, err)
+	}
+}
+
+func Test_Lexer_getTokenBoolean(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		expected Token
+	}{
+		"True": {
+			input:    "true",
+			expected: Token{Type: TokenType_Boolean, Value: "true"},
+		},
+		"False": {
+			input:    "false",
+			expected: Token{Type: TokenType_Boolean, Value: "false"},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lexer := New(tc.input)
+			result, err := lexer.getTokenBoolean()
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			if err := _tokensMatch(tc.expected, result); err != nil {
+				t.Fatalf("Unexpected result: %s", err)
+			}
+		})
+	}
+}
+
+func Test_Lexer_getTokenBoolean_Invalid(t *testing.T) {
+	input := "maybe"
+	lexer := New(input)
+
+	_, err := lexer.getTokenBoolean()
+
+	if err == nil {
+		t.Fatalf("Error expected but not returned")
+	}
+
+	if !errors.Is(err, errInvalidRune) {
+		t.Fatalf("Unexpected result\nExpected: %s\nActual: %s", errInvalidRune, err)
+	}
+
+	// Check that index was reset
+	if lexer.index != 0 {
+		t.Fatalf("Expected index to be reset to 0, got %d", lexer.index)
+	}
+}
