@@ -216,6 +216,24 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Or},
 			},
 		},
+		"LeftBracket": {
+			input: "[",
+			expectedTokens: []Token{
+				{Type: TokenType_LeftBracket},
+			},
+		},
+		"RightBracket": {
+			input: "]",
+			expectedTokens: []Token{
+				{Type: TokenType_RightBracket},
+			},
+		},
+		"Comma": {
+			input: ",",
+			expectedTokens: []Token{
+				{Type: TokenType_Comma},
+			},
+		},
 	}
 
 	for name, tc := range testCases {

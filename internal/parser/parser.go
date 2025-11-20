@@ -24,6 +24,8 @@ func init() {
 		lexer.TokenType_Number:        parseNumber,
 		lexer.TokenType_StringLiteral: parseString,
 		lexer.TokenType_Boolean:       parseBoolean,
+		lexer.TokenType_LeftBracket:   parseList,
+		lexer.TokenType_Minus:         parseUnaryMinus,
 	}
 
 	operatorMap = map[int]operatorFunc{
@@ -64,7 +66,8 @@ func (p *Parser) Parse() (expr Expr, err error) {
 	f, ok := parseMap[tok.Type]
 
 	if !ok {
-		err = fmt.Errorf("unrecognizable token: %s", tok)
+		err = fmt.Errorf("unrecognizable token: %s (type: %d)", tok, tok.Type)
+		return
 	}
 
 	expr, err = f(p, tok)
@@ -88,6 +91,11 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 	if err != nil {
 		err = fmt.Errorf("failed to peek token: %w", err)
 		return
+	}
+
+	// Check for list indexing first (higher precedence)
+	if tok.Type == lexer.TokenType_LeftBracket {
+		return p.parseListIndex(expr)
 	}
 
 	f, ok := operatorMap[tok.Type]
@@ -168,6 +176,92 @@ func parseBoolean(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	}
 
 	return exprBoolean, nil
+}
+
+// parseUnaryMinus parses a unary minus expression.
+// parseUnaryMinus implements parseFunc.
+func parseUnaryMinus(p *Parser, _ lexer.Token) (expr Expr, err error) {
+	// Parse the operand after the minus
+	operand, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse unary minus operand: %w", err)
+		return
+	}
+
+	// Create a subtraction from zero: 0 - operand
+	zero := ExprNumber{Value: decimal.NewFromInt(0)}
+	return ExprSubtract{
+		Expr1: zero,
+		Expr2: operand,
+	}, nil
+}
+
+// parseList parses a list literal token.
+// parseList implements parseFunc.
+func parseList(p *Parser, _ lexer.Token) (expr Expr, err error) {
+	var values []Expr
+
+	// Peek at the next token to see if it's a right bracket (empty list)
+	nextTok, peekErr := p.lexer.PeekToken()
+	if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", peekErr)
+		return
+	}
+
+	if nextTok.Type == lexer.TokenType_RightBracket {
+		// Empty list, consume the right bracket
+		p.lexer.GetToken()
+		return ExprList{
+			Values: values,
+		}, nil
+	}
+
+	// Parse the first expression
+	firstExpr, parseErr := p.Parse()
+	if parseErr != nil {
+		err = fmt.Errorf("failed to parse first list element: %w", parseErr)
+		return
+	}
+	values = append(values, firstExpr)
+
+	// Check for comma-separated values
+	for {
+		nextTok, peekErr = p.lexer.PeekToken()
+		if peekErr != nil {
+			if errors.Is(peekErr, io.EOF) {
+				err = fmt.Errorf("%w RightBracket, got EOF", ErrExpectedToken)
+			} else {
+				err = fmt.Errorf("failed to peek token: %w", peekErr)
+			}
+			return
+		}
+
+		if nextTok.Type == lexer.TokenType_RightBracket {
+			// End of list, consume the right bracket
+			p.lexer.GetToken()
+			break
+		}
+
+		if nextTok.Type != lexer.TokenType_Comma {
+			err = fmt.Errorf("%w comma or RightBracket in list, got %s", ErrExpectedToken, nextTok)
+			return
+		}
+
+		// Consume the comma
+		p.lexer.GetToken()
+
+		// Parse the next expression
+		nextExpr, parseErr := p.Parse()
+		if parseErr != nil {
+			err = fmt.Errorf("failed to parse list element: %w", parseErr)
+			return
+		}
+		values = append(values, nextExpr)
+	}
+
+	return ExprList{
+		Values: values,
+	}, nil
 }
 
 // operatorAdd wraps two expressions in an add expression.
@@ -276,4 +370,44 @@ func operatorOr(expr1 Expr, expr2 Expr) (op Expr) {
 		Expr1: expr1,
 		Expr2: expr2,
 	}
+}
+
+// parseListIndex parses a list indexing operation.
+func (p *Parser) parseListIndex(listExpr Expr) (expr Expr, err error) {
+	if p == nil {
+		err = fmt.Errorf("parser is nil")
+		return
+	}
+
+	// Consume the left bracket
+	_, err = p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get left bracket token: %w", err)
+		return
+	}
+
+	// Parse the index expression
+	indexExpr, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse list index: %w", err)
+		return
+	}
+
+	// Expect a right bracket
+	tok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+
+	if tok.Type != lexer.TokenType_RightBracket {
+		err = fmt.Errorf("%w RightBracket, got %s", ErrExpectedToken, tok)
+		return
+	}
+
+	// Check for chained indexing (e.g., [1,2,3][0][1])
+	return p.wrapOperation(ExprListIndex{
+		List:  listExpr,
+		Index: indexExpr,
+	})
 }

@@ -366,6 +366,95 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"Empty list": {
+			input: "[]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_List {
+					t.Fatalf("Expected List type, got %d", expr.Type())
+				}
+				list, ok := expr.(ExprList)
+				if !ok {
+					t.Fatalf("Expected ExprList, got %T", expr)
+				}
+				if len(list.Values) != 0 {
+					t.Fatalf("Expected empty list, got %d elements", len(list.Values))
+				}
+			},
+		},
+		"List with numbers": {
+			input: "[1, 2, 3]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_List {
+					t.Fatalf("Expected List type, got %d", expr.Type())
+				}
+				list, ok := expr.(ExprList)
+				if !ok {
+					t.Fatalf("Expected ExprList, got %T", expr)
+				}
+				if len(list.Values) != 3 {
+					t.Fatalf("Expected 3 elements, got %d", len(list.Values))
+				}
+				for i, value := range list.Values {
+					if value.Type() != ExprType_Number {
+						t.Fatalf("Expected Number at index %d, got %d", i, value.Type())
+					}
+				}
+			},
+		},
+		"List with mixed types": {
+			input: "[1, true, \"hello\"]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_List {
+					t.Fatalf("Expected List type, got %d", expr.Type())
+				}
+				list, ok := expr.(ExprList)
+				if !ok {
+					t.Fatalf("Expected ExprList, got %T", expr)
+				}
+				if len(list.Values) != 3 {
+					t.Fatalf("Expected 3 elements, got %d", len(list.Values))
+				}
+				if list.Values[0].Type() != ExprType_Number {
+					t.Fatalf("Expected Number at index 0, got %d", list.Values[0].Type())
+				}
+				if list.Values[1].Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean at index 1, got %d", list.Values[1].Type())
+				}
+				if list.Values[2].Type() != ExprType_String {
+					t.Fatalf("Expected String at index 2, got %d", list.Values[2].Type())
+				}
+			},
+		},
+		"List indexing": {
+			input: "[1, 2, 3][0]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListIndex {
+					t.Fatalf("Expected ListIndex type, got %d", expr.Type())
+				}
+				index, ok := expr.(ExprListIndex)
+				if !ok {
+					t.Fatalf("Expected ExprListIndex, got %T", expr)
+				}
+				if index.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", index.List.Type())
+				}
+				if index.Index.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as index operand, got %d", index.Index.Type())
+				}
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -686,6 +775,8 @@ func Test_Expr_String(t *testing.T) {
 		"LessThan":           {ExprLessThan{}, "LessThan"},
 		"LessThanOrEqual":    {ExprLessThanOrEqual{}, "LessThanOrEqual"},
 		"Boolean":            {ExprBoolean{}, "Boolean"},
+		"List":               {ExprList{}, "List"},
+		"ListIndex":          {ExprListIndex{}, "ListIndex"},
 	}
 
 	for name, tc := range testCases {
@@ -717,6 +808,8 @@ func Test_Expr_Type(t *testing.T) {
 		"LessThan":           {ExprLessThan{}, ExprType_LessThan},
 		"LessThanOrEqual":    {ExprLessThanOrEqual{}, ExprType_LessThanOrEqual},
 		"Boolean":            {ExprBoolean{}, ExprType_Boolean},
+		"List":               {ExprList{}, ExprType_List},
+		"ListIndex":          {ExprListIndex{}, ExprType_ListIndex},
 	}
 
 	for name, tc := range testCases {

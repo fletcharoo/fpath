@@ -25,6 +25,8 @@ const (
 	ExprType_And
 	ExprType_Or
 	ExprType_Boolean
+	ExprType_List
+	ExprType_ListIndex
 )
 
 var (
@@ -57,6 +59,8 @@ func (ExprLessThanOrEqual) Type() int    { return ExprType_LessThanOrEqual }
 func (ExprAnd) Type() int                { return ExprType_And }
 func (ExprOr) Type() int                 { return ExprType_Or }
 func (ExprBoolean) Type() int            { return ExprType_Boolean }
+func (ExprList) Type() int               { return ExprType_List }
+func (ExprListIndex) Type() int          { return ExprType_ListIndex }
 
 func (ExprBlock) String() string              { return "Block" }
 func (ExprNumber) String() string             { return "Number" }
@@ -74,6 +78,8 @@ func (ExprLessThanOrEqual) String() string    { return "LessThanOrEqual" }
 func (ExprAnd) String() string                { return "And" }
 func (ExprOr) String() string                 { return "Or" }
 func (ExprBoolean) String() string            { return "Boolean" }
+func (ExprList) String() string               { return "List" }
+func (ExprListIndex) String() string          { return "ListIndex" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -250,4 +256,25 @@ type ExprBoolean struct {
 func (e ExprBoolean) Decode() (result any, err error) {
 	result = e.Value
 	return result, nil
+}
+
+// ExprList represents a list literal containing zero or more expressions.
+type ExprList struct {
+	Values []Expr
+}
+
+func (e ExprList) Decode() (result any, err error) {
+	result = e
+	return result, nil
+}
+
+// ExprListIndex represents an indexing operation into a list expression.
+type ExprListIndex struct {
+	List  Expr
+	Index Expr
+}
+
+func (e ExprListIndex) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
 }

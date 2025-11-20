@@ -1750,3 +1750,137 @@ func Test_Eval_Or_ShortCircuit(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_List(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected []any
+	}{
+		"empty list": {
+			query:    "[]",
+			expected: []any{},
+		},
+		"list with numbers": {
+			query:    "[1, 2, 3]",
+			expected: []any{1.0, 2.0, 3.0},
+		},
+		"list with mixed types": {
+			query:    "[1, true, \"hello\"]",
+			expected: []any{1.0, true, "hello"},
+		},
+		"list with expressions": {
+			query:    "[1+2, 3*4, 5-1]",
+			expected: []any{3.0, 12.0, 4.0},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			// For lists, we need to check the decoded values
+			resultList, ok := resultDecoded.(parser.ExprList)
+			require.True(t, ok, "Expected ExprList result")
+
+			require.Equal(t, len(tc.expected), len(resultList.Values), "List length mismatch")
+
+			for i, expectedValue := range tc.expected {
+				valueDecoded, err := resultList.Values[i].Decode()
+				require.NoError(t, err, "Failed to decode list element %d", i)
+				require.Equal(t, expectedValue, valueDecoded, "Element %d does not match expected value", i)
+			}
+		})
+	}
+}
+
+func Test_Eval_ListIndex(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected any
+	}{
+		"index into number list": {
+			query:    "[1, 2, 3][0]",
+			expected: 1.0,
+		},
+		"index into mixed list": {
+			query:    "[1, true, \"hello\"][2]",
+			expected: "hello",
+		},
+		"index with expression": {
+			query:    "[1, 2, 3][1+1]",
+			expected: 3.0,
+		},
+		"chained indexing": {
+			query:    "[[1, 2], [3, 4]][0][1]",
+			expected: 2.0,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_ListIndex_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query             string
+		expectedErrorType error
+	}{
+		"index out of bounds - negative": {
+			query:             "[1, 2, 3][-1]",
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"index out of bounds - too large": {
+			query:             "[1, 2, 3][5]",
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"index into empty list": {
+			query:             "[][0]",
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"non-integer index": {
+			query:             "[1, 2, 3][1.5]",
+			expectedErrorType: runtime.ErrInvalidIndex,
+		},
+		"index into non-list": {
+			query:             "123[0]",
+			expectedErrorType: runtime.ErrInvalidIndex,
+		},
+		"non-number index": {
+			query:             `[1, 2, 3]["hello"]`,
+			expectedErrorType: runtime.ErrInvalidIndex,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedErrorType, "Error should be of expected type")
+		})
+	}
+}

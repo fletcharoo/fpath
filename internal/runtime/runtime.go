@@ -11,6 +11,8 @@ var (
 	ErrIncompatibleTypes = errors.New("incompatible types")
 	ErrDivisionByZero    = errors.New("division by zero")
 	ErrBooleanOperation  = errors.New("boolean operation requires boolean expressions")
+	ErrIndexOutOfBounds  = errors.New("list index out of bounds")
+	ErrInvalidIndex      = errors.New("invalid list index")
 )
 
 type evalFunc func(parser.Expr, any) (parser.Expr, error)
@@ -36,6 +38,8 @@ func init() {
 		parser.ExprType_LessThanOrEqual:    evalLessThanOrEqual,
 		parser.ExprType_And:                evalAnd,
 		parser.ExprType_Or:                 evalOr,
+		parser.ExprType_List:               evalList,
+		parser.ExprType_ListIndex:          evalListIndex,
 	}
 }
 
@@ -1159,4 +1163,96 @@ func evalOrBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
 	}
 
 	return resultBoolean, nil
+}
+
+// evalList evaluates a list expression by evaluating all its elements.
+func evalList(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprList, ok := expr.(parser.ExprList)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as list")
+		return
+	}
+
+	var evaluatedValues []parser.Expr
+	for _, valueExpr := range exprList.Values {
+		evaluatedValue, err := Eval(valueExpr, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate list element: %w", err)
+			return nil, err
+		}
+		evaluatedValues = append(evaluatedValues, evaluatedValue)
+	}
+
+	return parser.ExprList{
+		Values: evaluatedValues,
+	}, nil
+}
+
+// evalListIndex evaluates a list indexing operation.
+func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprListIndex, ok := expr.(parser.ExprListIndex)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as list index")
+		return
+	}
+
+	// Evaluate the list expression
+	listExpr, err := Eval(exprListIndex.List, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate list expression: %w", err)
+		return
+	}
+
+	// Check if it's actually a list
+	if listExpr.Type() != parser.ExprType_List {
+		err = fmt.Errorf("%w: cannot index into non-list expression of type %d", ErrInvalidIndex, listExpr.Type())
+		return
+	}
+
+	list, ok := listExpr.(parser.ExprList)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as list")
+		return
+	}
+
+	// Evaluate the index expression
+	indexExpr, err := Eval(exprListIndex.Index, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate index expression: %w", err)
+		return
+	}
+
+	// Check if index is a number
+	if indexExpr.Type() != parser.ExprType_Number {
+		err = fmt.Errorf("%w: index must be a number, got %d", ErrInvalidIndex, indexExpr.Type())
+		return
+	}
+
+	indexNumber, ok := indexExpr.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert index expression as number")
+		return
+	}
+
+	// Convert index to int
+	indexFloat, ok := indexNumber.Value.Float64()
+	if !ok {
+		err = fmt.Errorf("failed to convert index to float64")
+		return
+	}
+
+	index := int(indexFloat)
+	if indexFloat != float64(index) {
+		err = fmt.Errorf("%w: index must be an integer, got %f", ErrInvalidIndex, indexFloat)
+		return
+	}
+
+	// Check bounds
+	if index < 0 || index >= len(list.Values) {
+		err = fmt.Errorf("%w: index %d is out of bounds for list of length %d", ErrIndexOutOfBounds, index, len(list.Values))
+		return
+	}
+
+	// Return the element at the index
+	return list.Values[index], nil
 }
