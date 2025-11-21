@@ -96,7 +96,12 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 		return
 	}
 
-	// Check for indexing first (higher precedence)
+	// Check for ternary operator first (lowest precedence)
+	if tok.Type == lexer.TokenType_Question {
+		return p.parseTernary(expr)
+	}
+
+	// Check for indexing next (higher precedence)
 	if tok.Type == lexer.TokenType_LeftBracket {
 		// Consume the left bracket first
 		p.lexer.GetToken() // Consume the LeftBracket from tok
@@ -139,7 +144,37 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 		err = fmt.Errorf("failed to parse the second expression: %w", err)
 	}
 
-	return f(expr, expr2), nil
+	// Check if the second expression is a ternary and there's no more tokens
+	// This handles cases like "5 > 3 ? "greater" : "less" where ternary
+	// should have lower precedence than the binary operation
+	if expr2.Type() == ExprType_Ternary {
+		// Check if there are any more tokens after the ternary
+		nextTok, peekErr := p.lexer.PeekToken()
+		if peekErr != nil || (peekErr == nil && nextTok.Type == lexer.TokenType_Undefined) {
+			// No more tokens, so this should be parsed as a ternary
+			// with the binary operation as the condition
+			ternaryExpr := expr2.(ExprTernary)
+			binaryOp := f(expr, ternaryExpr.Condition)
+			return ExprTernary{
+				Condition: binaryOp,
+				TrueExpr:  ternaryExpr.TrueExpr,
+				FalseExpr: ternaryExpr.FalseExpr,
+			}, nil
+		}
+	}
+
+	result, err := p.wrapOperation(f(expr, expr2))
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for ternary operator after complete expression (lowest precedence)
+	nextTok, err := p.lexer.PeekToken()
+	if err == nil && nextTok.Type == lexer.TokenType_Question {
+		return p.parseTernary(result)
+	}
+
+	return result, nil
 }
 
 // parseUndefined parses an undefined token.
@@ -603,6 +638,43 @@ func parseLabelOrFunction(p *Parser, tok lexer.Token) (expr Expr, err error) {
 	// This is just a regular label (which should be an error in current grammar)
 	err = fmt.Errorf("%w: %v", ErrUndefinedToken, tok.Value)
 	return
+}
+
+// parseTernary parses a ternary conditional expression.
+func (p *Parser) parseTernary(conditionExpr Expr) (expr Expr, err error) {
+	// Consume the question mark (already peeked)
+	p.lexer.GetToken()
+
+	// Parse the true expression
+	trueExpr, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse true expression in ternary: %w", err)
+		return
+	}
+
+	// Expect a colon
+	colonTok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+	if colonTok.Type != lexer.TokenType_Colon {
+		err = fmt.Errorf("%w Colon in ternary expression, got %s", ErrExpectedToken, colonTok)
+		return
+	}
+
+	// Parse the false expression
+	falseExpr, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse false expression in ternary: %w", err)
+		return
+	}
+
+	return ExprTernary{
+		Condition: conditionExpr,
+		TrueExpr:  trueExpr,
+		FalseExpr: falseExpr,
+	}, nil
 }
 
 // parseFunction parses a function call with the given name.

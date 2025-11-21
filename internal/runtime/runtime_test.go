@@ -1,6 +1,7 @@
 package runtime_test
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/fletcharoo/fpath/internal/lexer"
@@ -114,6 +115,29 @@ func Test_Eval(t *testing.T) {
 			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
 		})
 	}
+}
+
+// normalizeExprMap returns a normalized ExprMap with pairs sorted by key for deterministic comparison
+func normalizeExprMap(exprMap parser.ExprMap) parser.ExprMap {
+	// Create a copy of pairs to avoid modifying the original
+	pairs := make([]parser.ExprMapPair, len(exprMap.Pairs))
+	copy(pairs, exprMap.Pairs)
+
+	// Sort pairs by key
+	sort.Slice(pairs, func(i, j int) bool {
+		keyI := pairs[i].Key.(parser.ExprString).Value
+		keyJ := pairs[j].Key.(parser.ExprString).Value
+		return keyI < keyJ
+	})
+
+	// Recursively normalize nested maps
+	for i := range pairs {
+		if nestedMap, ok := pairs[i].Value.(parser.ExprMap); ok {
+			pairs[i].Value = normalizeExprMap(nestedMap)
+		}
+	}
+
+	return parser.ExprMap{Pairs: pairs}
 }
 
 func Test_Eval_Input(t *testing.T) {
@@ -404,6 +428,14 @@ func Test_Eval_Input(t *testing.T) {
 
 			resultDecoded, err := result.Decode()
 			require.NoError(t, err, "Failed to decode result")
+
+			// Normalize both expected and actual ExprMaps for deterministic comparison
+			if expectedMap, ok := tc.expected.(parser.ExprMap); ok {
+				if actualMap, ok := resultDecoded.(parser.ExprMap); ok {
+					require.Equal(t, normalizeExprMap(expectedMap), normalizeExprMap(actualMap), "Result does not match expected value")
+					return
+				}
+			}
 
 			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
 		})
@@ -2127,6 +2159,137 @@ func Test_Eval_Or_ShortCircuit(t *testing.T) {
 	}
 }
 
+func Test_Eval_Ternary(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected any
+	}{
+		"true branch": {
+			query:    `true ? "yes" : "no"`,
+			expected: "yes",
+		},
+		"false branch": {
+			query:    `false ? "yes" : "no"`,
+			expected: "no",
+		},
+		"complex condition true": {
+			query:    `5 > 3 ? "greater" : "less"`,
+			expected: "greater",
+		},
+		"complex condition false": {
+			query:    `2 > 3 ? "greater" : "less"`,
+			expected: "less",
+		},
+		"nested ternary true": {
+			query:    `true ? (false ? "a" : "b") : "c"`,
+			expected: "b",
+		},
+		"nested ternary false": {
+			query:    `false ? (true ? "a" : "b") : "c"`,
+			expected: "c",
+		},
+		"right-associative ternary": {
+			query:    `true ? "yes" : false ? "no" : "maybe"`,
+			expected: "yes",
+		},
+		"right-associative ternary false": {
+			query:    `false ? "yes" : true ? "no" : "maybe"`,
+			expected: "no",
+		},
+		"number expressions": {
+			query:    `true ? 1 : 0`,
+			expected: 1.0,
+		},
+		"boolean expressions": {
+			query:    `true ? true : false`,
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			parser := parser.New(lex)
+			expr, err := parser.Parse()
+			require.NoError(t, err, "Failed to parse query")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Failed to evaluate expression")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Ternary_ShortCircuit(t *testing.T) {
+	// Test that only the appropriate branch is evaluated
+	// This is hard to test directly without side effects, but we can test
+	// that errors in the unchosen branch are not triggered
+
+	testCases := map[string]struct {
+		query    string
+		expected any
+	}{
+		"true branch - false branch has error": {
+			query:    `true ? "yes" : (1 / 0)`,
+			expected: "yes",
+		},
+		"false branch - true branch has error": {
+			query:    `false ? (1 / 0) : "no"`,
+			expected: "no",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			parser := parser.New(lex)
+			expr, err := parser.Parse()
+			require.NoError(t, err, "Failed to parse query")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Failed to evaluate expression")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Ternary_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query         string
+		expectedError error
+	}{
+		"non-boolean condition": {
+			query:         `"string" ? "yes" : "no"`,
+			expectedError: runtime.ErrBooleanOperation,
+		},
+		"number condition": {
+			query:         `5 ? "yes" : "no"`,
+			expectedError: runtime.ErrBooleanOperation,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			parser := parser.New(lex)
+			expr, err := parser.Parse()
+			require.NoError(t, err, "Failed to parse query")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected error when evaluating ternary")
+			require.ErrorIs(t, err, tc.expectedError, "Error should be of expected type")
+		})
+	}
+}
+
 func Test_Eval_List(t *testing.T) {
 	testCases := map[string]struct {
 		query    string
@@ -2544,38 +2707,38 @@ func Test_Eval_Function(t *testing.T) {
 
 func Test_Eval_Function_Errors(t *testing.T) {
 	testCases := map[string]struct {
-		query           string
-		input           any
-		expectedError    error
+		query         string
+		input         any
+		expectedError error
 	}{
 		"undefined function": {
-			query:        `unknown("test")`,
+			query:         `unknown("test")`,
 			expectedError: runtime.ErrUndefinedFunction,
 		},
 		"len with too many arguments": {
-			query:        `len("hello", "world")`,
+			query:         `len("hello", "world")`,
 			expectedError: runtime.ErrInvalidArgumentCount,
 		},
 		"len with no arguments": {
-			query:        `len()`,
+			query:         `len()`,
 			expectedError: runtime.ErrInvalidArgumentCount,
 		},
 		"len with number": {
-			query:        `len(123)`,
+			query:         `len(123)`,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 		"len with boolean": {
-			query:        `len(true)`,
+			query:         `len(true)`,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 		"len with input number": {
-			query:        `len($)`,
-			input:        42,
+			query:         `len($)`,
+			input:         42,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 		"len with input boolean": {
-			query:        `len($)`,
-			input:        true,
+			query:         `len($)`,
+			input:         true,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 	}

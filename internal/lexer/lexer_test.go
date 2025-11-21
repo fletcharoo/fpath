@@ -258,6 +258,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Dollar},
 			},
 		},
+		"Question": {
+			input: "?",
+			expectedTokens: []Token{
+				{Type: TokenType_Question},
+			},
+		},
 	}
 
 	for name, tc := range testCases {

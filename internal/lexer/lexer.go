@@ -26,6 +26,7 @@ const (
 	TokenType_LessThanOrEqual
 	TokenType_And
 	TokenType_Or
+	TokenType_Question
 	TokenType_LeftParan
 	TokenType_RightParan
 	TokenType_LeftBracket
@@ -56,6 +57,7 @@ var (
 		TokenType_LessThanOrEqual:    "LessThanOrEqual",
 		TokenType_And:                "And",
 		TokenType_Or:                 "Or",
+		TokenType_Question:           "Question",
 		TokenType_LeftParan:          "LeftParan",
 		TokenType_RightParan:         "RightParan",
 		TokenType_LeftBracket:        "LeftBracket",
@@ -249,6 +251,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			// Single | is not supported, return error
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))
 			return
+		case '?':
+			l.index++
+			return Token{
+				Type: TokenType_Question,
+			}, nil
 		case '>':
 			l.index++
 			// Check if this is the start of >= operator

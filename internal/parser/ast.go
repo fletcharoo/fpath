@@ -25,6 +25,7 @@ const (
 	ExprType_LessThanOrEqual
 	ExprType_And
 	ExprType_Or
+	ExprType_Ternary
 	ExprType_Boolean
 	ExprType_List
 	ExprType_ListIndex
@@ -64,6 +65,7 @@ func (ExprLessThan) Type() int           { return ExprType_LessThan }
 func (ExprLessThanOrEqual) Type() int    { return ExprType_LessThanOrEqual }
 func (ExprAnd) Type() int                { return ExprType_And }
 func (ExprOr) Type() int                 { return ExprType_Or }
+func (ExprTernary) Type() int            { return ExprType_Ternary }
 func (ExprBoolean) Type() int            { return ExprType_Boolean }
 func (ExprList) Type() int               { return ExprType_List }
 func (ExprListIndex) Type() int          { return ExprType_ListIndex }
@@ -87,6 +89,7 @@ func (ExprLessThan) String() string           { return "LessThan" }
 func (ExprLessThanOrEqual) String() string    { return "LessThanOrEqual" }
 func (ExprAnd) String() string                { return "And" }
 func (ExprOr) String() string                 { return "Or" }
+func (ExprTernary) String() string            { return "Ternary" }
 func (ExprBoolean) String() string            { return "Boolean" }
 func (ExprList) String() string               { return "List" }
 func (ExprListIndex) String() string          { return "ListIndex" }
@@ -266,6 +269,18 @@ type ExprOr struct {
 }
 
 func (e ExprOr) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprTernary represents a ternary conditional expression.
+type ExprTernary struct {
+	Condition Expr
+	TrueExpr  Expr
+	FalseExpr Expr
+}
+
+func (e ExprTernary) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

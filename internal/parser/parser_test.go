@@ -566,6 +566,127 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"Ternary true branch": {
+			input: `true ? "yes" : "no"`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary type, got %d", expr.Type())
+				}
+				ternary, ok := expr.(ExprTernary)
+				if !ok {
+					t.Fatalf("Expected ExprTernary, got %T", expr)
+				}
+				if ternary.Condition.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean condition, got %d", ternary.Condition.Type())
+				}
+				if ternary.TrueExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String true expression, got %d", ternary.TrueExpr.Type())
+				}
+				if ternary.FalseExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String false expression, got %d", ternary.FalseExpr.Type())
+				}
+			},
+		},
+		"Ternary with comparison": {
+			input: `5 > 3 ? "greater" : "less"`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary type, got %d", expr.Type())
+				}
+				ternary, ok := expr.(ExprTernary)
+				if !ok {
+					t.Fatalf("Expected ExprTernary, got %T", expr)
+				}
+				if ternary.Condition.Type() != ExprType_GreaterThan {
+					t.Fatalf("Expected GreaterThan condition, got %d", ternary.Condition.Type())
+				}
+				if ternary.TrueExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String true expression, got %d", ternary.TrueExpr.Type())
+				}
+				if ternary.FalseExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String false expression, got %d", ternary.FalseExpr.Type())
+				}
+			},
+		},
+		"Ternary false branch": {
+			input: `false ? "yes" : "no"`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary type, got %d", expr.Type())
+				}
+				ternary, ok := expr.(ExprTernary)
+				if !ok {
+					t.Fatalf("Expected ExprTernary, got %T", expr)
+				}
+				if ternary.Condition.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean condition, got %d", ternary.Condition.Type())
+				}
+				if ternary.TrueExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String true expression, got %d", ternary.TrueExpr.Type())
+				}
+				if ternary.FalseExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String false expression, got %d", ternary.FalseExpr.Type())
+				}
+			},
+		},
+		"Nested ternary": {
+			input: `true ? (false ? "a" : "b") : "c"`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary type, got %d", expr.Type())
+				}
+				ternary, ok := expr.(ExprTernary)
+				if !ok {
+					t.Fatalf("Expected ExprTernary, got %T", expr)
+				}
+				if ternary.Condition.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean condition, got %d", ternary.Condition.Type())
+				}
+				if ternary.TrueExpr.Type() != ExprType_Block {
+					t.Fatalf("Expected Block true expression, got %d", ternary.TrueExpr.Type())
+				}
+				if ternary.FalseExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String false expression, got %d", ternary.FalseExpr.Type())
+				}
+			},
+		},
+		"Right-associative ternary": {
+			input: `true ? "yes" : false ? "no" : "maybe"`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary type, got %d", expr.Type())
+				}
+				ternary, ok := expr.(ExprTernary)
+				if !ok {
+					t.Fatalf("Expected ExprTernary, got %T", expr)
+				}
+				// Should be parsed as true ? "yes" : (false ? "no" : "maybe")
+				if ternary.Condition.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean condition, got %d", ternary.Condition.Type())
+				}
+				if ternary.TrueExpr.Type() != ExprType_String {
+					t.Fatalf("Expected String true expression, got %d", ternary.TrueExpr.Type())
+				}
+				if ternary.FalseExpr.Type() != ExprType_Ternary {
+					t.Fatalf("Expected Ternary false expression (right-associative), got %d", ternary.FalseExpr.Type())
+				}
+			},
+		},
 	}
 
 	for name, tc := range testCases {

@@ -47,6 +47,7 @@ func init() {
 		parser.ExprType_LessThanOrEqual:    evalLessThanOrEqual,
 		parser.ExprType_And:                evalAnd,
 		parser.ExprType_Or:                 evalOr,
+		parser.ExprType_Ternary:            evalTernary,
 		parser.ExprType_List:               evalList,
 		parser.ExprType_ListIndex:          evalListIndex,
 		parser.ExprType_Map:                evalMap,
@@ -1186,7 +1187,52 @@ func evalOrBoolean(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
 	return resultBoolean, nil
 }
 
-// evalList evaluates a list expression by evaluating all its elements.
+// evalTernary evaluates a ternary conditional expression with short-circuiting.
+func evalTernary(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprTernary, ok := expr.(parser.ExprTernary)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as ternary")
+		return
+	}
+
+	// Evaluate condition first
+	conditionExpr, err := Eval(exprTernary.Condition, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate ternary condition: %w", err)
+		return
+	}
+
+	// Condition must be boolean
+	if conditionExpr.Type() != parser.ExprType_Boolean {
+		err = fmt.Errorf("%w: ternary condition must be boolean, got %s", ErrBooleanOperation, conditionExpr)
+		return
+	}
+
+	conditionBoolean, ok := conditionExpr.(parser.ExprBoolean)
+	if !ok {
+		err = fmt.Errorf("failed to assert condition as boolean")
+		return
+	}
+
+	// Short-circuit: evaluate only the appropriate branch
+	if conditionBoolean.Value {
+		// Evaluate true expression
+		trueExpr, err := Eval(exprTernary.TrueExpr, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate ternary true expression: %w", err)
+			return nil, err
+		}
+		return trueExpr, nil
+	} else {
+		// Evaluate false expression
+		falseExpr, err := Eval(exprTernary.FalseExpr, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate ternary false expression: %w", err)
+			return nil, err
+		}
+		return falseExpr, nil
+	}
+}
 func evalList(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	exprList, ok := expr.(parser.ExprList)
 	if !ok {
