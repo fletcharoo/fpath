@@ -47,6 +47,41 @@ require.ErrorIs(t, err, runtime.ErrIncompatibleTypes)
 - `parser.ErrUndefinedToken`: Undefined token errors
 - `parser.ErrExpectedToken`: Missing expected token errors
 
+### Debugging Practices
+This project follows a test-driven debugging approach:
+
+#### NO DEbugging Files
+- **NEVER** create separate debug files (e.g., `debug.go`, `debug_parser.go`, `temp.go`)
+- Debug files cause issues including redefinition of helper functions across packages, syntax conflicts with existing code, additional cleanup work required, unclear separate between production and debug code.
+
+#### Test-Based Debugging
+- **ALWAYS** debug within existing test files (`*_test.go`)
+- Add temporary test cases with descriptive names like `TestDebug_SpecificIssue`
+- Use `t.Logf()` for debug output instead of `fmt.Println()`
+- Mark debug tests clearly with comments: `// DEBUG: Investigate XYZ issue`
+- Remove or convert debug tests to proper test cases after debugging is complete
+
+#### Examples
+```go
+// ❌ BAD - Creating a debug file
+// File: internal/runtime/debug.go
+func debugHelper() { /* ... */ }
+
+// ✅ GOOD - Debug within existing test file
+// File: internal/runtime/runtime_test.go
+func TestDebug_TypeMismatchIssue(t *testing.T) {
+    // DEBUG: Investigating type conversion edge case
+    result := evaluateExpression(...)
+    t.Logf("Result type: %T, value: %v", result, result)
+    require.Equal(t, expected, result)
+}
+```
+
+#### Temporary Debug Code
+- If you need helper functions for debugging, define them inline within the test function
+- Use `t.Helper()` to mark helper functions properly
+- Always remove temporary debug code before considering work complete
+
 ## Project Structure
 ```
 fpath/
