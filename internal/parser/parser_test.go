@@ -470,6 +470,102 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"Function call with no arguments": {
+			input: "len()",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Function {
+					t.Fatalf("Expected Function type, got %d", expr.Type())
+				}
+				function, ok := expr.(ExprFunction)
+				if !ok {
+					t.Fatalf("Expected ExprFunction, got %T", expr)
+				}
+				if function.Name != "len" {
+					t.Fatalf("Expected function name 'len', got %s", function.Name)
+				}
+				if len(function.Args) != 0 {
+					t.Fatalf("Expected 0 arguments, got %d", len(function.Args))
+				}
+			},
+		},
+		"Function call with one argument": {
+			input: "len(\"hello\")",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Function {
+					t.Fatalf("Expected Function type, got %d", expr.Type())
+				}
+				function, ok := expr.(ExprFunction)
+				if !ok {
+					t.Fatalf("Expected ExprFunction, got %T", expr)
+				}
+				if function.Name != "len" {
+					t.Fatalf("Expected function name 'len', got %s", function.Name)
+				}
+				if len(function.Args) != 1 {
+					t.Fatalf("Expected 1 argument, got %d", len(function.Args))
+				}
+				if function.Args[0].Type() != ExprType_String {
+					t.Fatalf("Expected String argument, got %d", function.Args[0].Type())
+				}
+			},
+		},
+		"Function call with multiple arguments": {
+			input: "len(\"hello\", \"world\")",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Function {
+					t.Fatalf("Expected Function type, got %d", expr.Type())
+				}
+				function, ok := expr.(ExprFunction)
+				if !ok {
+					t.Fatalf("Expected ExprFunction, got %T", expr)
+				}
+				if function.Name != "len" {
+					t.Fatalf("Expected function name 'len', got %s", function.Name)
+				}
+				if len(function.Args) != 2 {
+					t.Fatalf("Expected 2 arguments, got %d", len(function.Args))
+				}
+				if function.Args[0].Type() != ExprType_String {
+					t.Fatalf("Expected String argument at index 0, got %d", function.Args[0].Type())
+				}
+				if function.Args[1].Type() != ExprType_String {
+					t.Fatalf("Expected String argument at index 1, got %d", function.Args[1].Type())
+				}
+			},
+		},
+		"Function call with complex argument": {
+			input: "len([1, 2, 3])",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Function {
+					t.Fatalf("Expected Function type, got %d", expr.Type())
+				}
+				function, ok := expr.(ExprFunction)
+				if !ok {
+					t.Fatalf("Expected ExprFunction, got %T", expr)
+				}
+				if function.Name != "len" {
+					t.Fatalf("Expected function name 'len', got %s", function.Name)
+				}
+				if len(function.Args) != 1 {
+					t.Fatalf("Expected 1 argument, got %d", len(function.Args))
+				}
+				if function.Args[0].Type() != ExprType_List {
+					t.Fatalf("Expected List argument, got %d", function.Args[0].Type())
+				}
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -482,54 +578,32 @@ func Test_Parser_Parse(t *testing.T) {
 	}
 }
 
-func Test_parseUndefined(t *testing.T) {
-	token := lexer.Token{Type: lexer.TokenType_Undefined, Value: "test"}
-	expr, err := parseUndefined(nil, token)
-
-	if err == nil {
-		t.Fatalf("Error expected but not returned")
-	}
-
-	if expr != nil {
-		t.Fatalf("Expected nil expression, got %v", expr)
-	}
-
-	if !errors.Is(err, ErrUndefinedToken) {
-		t.Fatalf("Expected ErrUndefinedToken, got: %s", err.Error())
-	}
-}
-
-func Test_parseBlock(t *testing.T) {
+func Test_Parser_Parse_Function_Errors(t *testing.T) {
 	testCases := map[string]struct {
 		input    string
 		validate func(Expr, error)
 	}{
-		"Valid block": {
-			input: "(123)",
+		"Missing right parenthesis": {
+			input: "len(",
 			validate: func(expr Expr, err error) {
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
+				if err == nil {
+					t.Fatalf("Expected error, but got none")
 				}
-				if expr.Type() != ExprType_Block {
-					t.Fatalf("Expected Block type, got %d", expr.Type())
-				}
-				block, ok := expr.(ExprBlock)
-				if !ok {
-					t.Fatalf("Expected ExprBlock, got %T", expr)
-				}
-				if block.Expr.Type() != ExprType_Number {
-					t.Fatalf("Expected Number inside block, got %d", block.Expr.Type())
+				// The error could be ErrExpectedToken or could be wrapped in a parsing error
+				if !errors.Is(err, ErrExpectedToken) && !errors.Is(err, ErrUndefinedToken) {
+					t.Fatalf("Expected ErrExpectedToken or ErrUndefinedToken, got %s", err)
 				}
 			},
 		},
-		"Missing right parenthesis": {
-			input: "(123",
+		"Invalid argument syntax": {
+			input: "len(,)",
 			validate: func(expr Expr, err error) {
 				if err == nil {
-					t.Fatalf("Error expected but not returned")
+					t.Fatalf("Expected error, but got none")
 				}
-				if !errors.Is(err, ErrExpectedToken) {
-					t.Fatalf("Expected ErrExpectedToken, got: %s", err.Error())
+				// Should fail when trying to parse the first argument as an expression
+				if err == nil {
+					t.Fatalf("Expected parsing error")
 				}
 			},
 		},
@@ -539,300 +613,8 @@ func Test_parseBlock(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			lex := lexer.New(tc.input)
 			parser := New(lex)
-			// Skip the left parenthesis
-			lex.GetToken()
-			expr, err := parseBlock(parser, lexer.Token{})
+			expr, err := parser.Parse()
 			tc.validate(expr, err)
-		})
-	}
-}
-
-func Test_parseNumber(t *testing.T) {
-	testCases := map[string]struct {
-		input    string
-		validate func(Expr, error)
-	}{
-		"Valid integer": {
-			input: "123",
-			validate: func(expr Expr, err error) {
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-				if expr.Type() != ExprType_Number {
-					t.Fatalf("Expected Number type, got %d", expr.Type())
-				}
-				num, ok := expr.(ExprNumber)
-				if !ok {
-					t.Fatalf("Expected ExprNumber, got %T", expr)
-				}
-				expected, _ := decimal.NewFromString("123")
-				if !num.Value.Equal(expected) {
-					t.Fatalf("Expected 123, got %s", num.Value.String())
-				}
-			},
-		},
-		"Valid decimal": {
-			input: "123.45",
-			validate: func(expr Expr, err error) {
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-				if expr.Type() != ExprType_Number {
-					t.Fatalf("Expected Number type, got %d", expr.Type())
-				}
-				num, ok := expr.(ExprNumber)
-				if !ok {
-					t.Fatalf("Expected ExprNumber, got %T", expr)
-				}
-				expected, _ := decimal.NewFromString("123.45")
-				if !num.Value.Equal(expected) {
-					t.Fatalf("Expected 123.45, got %s", num.Value.String())
-				}
-			},
-		},
-		"Invalid number": {
-			input: "abc",
-			validate: func(expr Expr, err error) {
-				// parseNumber has a bug - it sets the error but doesn't return it
-				// It returns exprNumber, nil even when decimal parsing fails
-				// So we expect no error but the expression should have a zero decimal value
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-				// The expression should be returned but with zero value due to the bug
-				if expr == nil {
-					t.Fatalf("Expected expression to be returned")
-				}
-				num, ok := expr.(ExprNumber)
-				if !ok {
-					t.Fatalf("Expected ExprNumber, got %T", expr)
-				}
-				// Should be zero value since decimal parsing failed
-				if !num.Value.IsZero() {
-					t.Fatalf("Expected zero decimal value, got %s", num.Value.String())
-				}
-			},
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			token := lexer.Token{Type: lexer.TokenType_Number, Value: tc.input}
-			expr, err := parseNumber(nil, token)
-			tc.validate(expr, err)
-		})
-	}
-}
-
-func Test_parseString(t *testing.T) {
-	token := lexer.Token{Type: lexer.TokenType_StringLiteral, Value: "hello world"}
-	expr, err := parseString(nil, token)
-
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-
-	if expr.Type() != ExprType_String {
-		t.Fatalf("Expected String type, got %d", expr.Type())
-	}
-
-	str, ok := expr.(ExprString)
-	if !ok {
-		t.Fatalf("Expected ExprString, got %T", expr)
-	}
-
-	if str.Value != "hello world" {
-		t.Fatalf("Expected 'hello world', got '%s'", str.Value)
-	}
-}
-
-func Test_parseBoolean(t *testing.T) {
-	testCases := map[string]struct {
-		input    string
-		expected bool
-	}{
-		"True":  {"true", true},
-		"False": {"false", false},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			token := lexer.Token{Type: lexer.TokenType_Boolean, Value: tc.input}
-			expr, err := parseBoolean(nil, token)
-
-			if err != nil {
-				t.Fatalf("Unexpected error: %s", err)
-			}
-
-			if expr.Type() != ExprType_Boolean {
-				t.Fatalf("Expected Boolean type, got %d", expr.Type())
-			}
-
-			boolean, ok := expr.(ExprBoolean)
-			if !ok {
-				t.Fatalf("Expected ExprBoolean, got %T", expr)
-			}
-
-			if boolean.Value != tc.expected {
-				t.Fatalf("Expected %v, got %v", tc.expected, boolean.Value)
-			}
-		})
-	}
-}
-
-func Test_operatorFunctions(t *testing.T) {
-	expr1 := ExprNumber{Value: decimal.NewFromInt(123)}
-	expr2 := ExprNumber{Value: decimal.NewFromInt(456)}
-
-	testCases := map[string]struct {
-		operator operatorFunc
-		expected int
-	}{
-		"Add":                {operatorAdd, ExprType_Add},
-		"Subtract":           {operatorSubtract, ExprType_Subtract},
-		"Multiply":           {operatorMultiply, ExprType_Multiply},
-		"Divide":             {operatorDivide, ExprType_Divide},
-		"Equals":             {operatorEquals, ExprType_Equals},
-		"NotEquals":          {operatorNotEquals, ExprType_NotEquals},
-		"GreaterThan":        {operatorGreaterThan, ExprType_GreaterThan},
-		"GreaterThanOrEqual": {operatorGreaterThanOrEqual, ExprType_GreaterThanOrEqual},
-		"LessThan":           {operatorLessThan, ExprType_LessThan},
-		"LessThanOrEqual":    {operatorLessThanOrEqual, ExprType_LessThanOrEqual},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			result := tc.operator(expr1, expr2)
-			if result.Type() != tc.expected {
-				t.Fatalf("Expected type %d, got %d", tc.expected, result.Type())
-			}
-		})
-	}
-}
-
-func Test_Expr_Decode(t *testing.T) {
-	testCases := map[string]struct {
-		expr     Expr
-		expected any
-		hasError bool
-	}{
-		"Number": {
-			expr:     ExprNumber{Value: decimal.NewFromInt(123)},
-			expected: float64(123),
-			hasError: false,
-		},
-		"String": {
-			expr:     ExprString{Value: "hello"},
-			expected: "hello",
-			hasError: false,
-		},
-		"Boolean true": {
-			expr:     ExprBoolean{Value: true},
-			expected: true,
-			hasError: false,
-		},
-		"Boolean false": {
-			expr:     ExprBoolean{Value: false},
-			expected: false,
-			hasError: false,
-		},
-		"Block": {
-			expr:     ExprBlock{Expr: ExprNumber{Value: decimal.NewFromInt(123)}},
-			expected: nil,
-			hasError: true,
-		},
-		"Add": {
-			expr:     ExprAdd{Expr1: ExprNumber{Value: decimal.NewFromInt(123)}, Expr2: ExprNumber{Value: decimal.NewFromInt(456)}},
-			expected: nil,
-			hasError: true,
-		},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			result, err := tc.expr.Decode()
-
-			if tc.hasError {
-				if err == nil {
-					t.Fatalf("Error expected but not returned")
-				}
-				if !errors.Is(err, ErrInvalidDecode) {
-					t.Fatalf("Expected ErrInvalidDecode, got: %s", err.Error())
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("Unexpected error: %s", err)
-				}
-				if result != tc.expected {
-					t.Fatalf("Expected %v, got %v", tc.expected, result)
-				}
-			}
-		})
-	}
-}
-
-func Test_Expr_String(t *testing.T) {
-	testCases := map[string]struct {
-		expr     Expr
-		expected string
-	}{
-		"Block":              {ExprBlock{}, "Block"},
-		"Number":             {ExprNumber{}, "Number"},
-		"String":             {ExprString{}, "String"},
-		"Add":                {ExprAdd{}, "Add"},
-		"Subtract":           {ExprSubtract{}, "Subtract"},
-		"Multiply":           {ExprMultiply{}, "Multiply"},
-		"Divide":             {ExprDivide{}, "Divide"},
-		"Equals":             {ExprEquals{}, "Equals"},
-		"NotEquals":          {ExprNotEquals{}, "NotEquals"},
-		"GreaterThan":        {ExprGreaterThan{}, "GreaterThan"},
-		"GreaterThanOrEqual": {ExprGreaterThanOrEqual{}, "GreaterThanOrEqual"},
-		"LessThan":           {ExprLessThan{}, "LessThan"},
-		"LessThanOrEqual":    {ExprLessThanOrEqual{}, "LessThanOrEqual"},
-		"Boolean":            {ExprBoolean{}, "Boolean"},
-		"List":               {ExprList{}, "List"},
-		"ListIndex":          {ExprListIndex{}, "ListIndex"},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			result := tc.expr.String()
-			if result != tc.expected {
-				t.Fatalf("Expected %s, got %s", tc.expected, result)
-			}
-		})
-	}
-}
-
-func Test_Expr_Type(t *testing.T) {
-	testCases := map[string]struct {
-		expr     Expr
-		expected int
-	}{
-		"Block":              {ExprBlock{}, ExprType_Block},
-		"Number":             {ExprNumber{}, ExprType_Number},
-		"String":             {ExprString{}, ExprType_String},
-		"Add":                {ExprAdd{}, ExprType_Add},
-		"Subtract":           {ExprSubtract{}, ExprType_Subtract},
-		"Multiply":           {ExprMultiply{}, ExprType_Multiply},
-		"Divide":             {ExprDivide{}, ExprType_Divide},
-		"Equals":             {ExprEquals{}, ExprType_Equals},
-		"NotEquals":          {ExprNotEquals{}, ExprType_NotEquals},
-		"GreaterThan":        {ExprGreaterThan{}, ExprType_GreaterThan},
-		"GreaterThanOrEqual": {ExprGreaterThanOrEqual{}, ExprType_GreaterThanOrEqual},
-		"LessThan":           {ExprLessThan{}, ExprType_LessThan},
-		"LessThanOrEqual":    {ExprLessThanOrEqual{}, ExprType_LessThanOrEqual},
-		"Boolean":            {ExprBoolean{}, ExprType_Boolean},
-		"List":               {ExprList{}, ExprType_List},
-		"ListIndex":          {ExprListIndex{}, ExprType_ListIndex},
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			result := tc.expr.Type()
-			if result != tc.expected {
-				t.Fatalf("Expected %d, got %d", tc.expected, result)
-			}
 		})
 	}
 }

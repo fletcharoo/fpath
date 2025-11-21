@@ -2469,3 +2469,126 @@ func Test_Eval_MapIndex_Errors(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_Function(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"len with string literal": {
+			query:    `len("hello")`,
+			expected: 5.0,
+		},
+		"len with empty string": {
+			query:    `len("")`,
+			expected: 0.0,
+		},
+		"len with list literal": {
+			query:    `len([1, 2, 3, 4, 5])`,
+			expected: 5.0,
+		},
+		"len with empty list": {
+			query:    `len([])`,
+			expected: 0.0,
+		},
+		"len with map literal": {
+			query:    `len({"a": 1, "b": 2})`,
+			expected: 2.0,
+		},
+		"len with empty map": {
+			query:    `len({})`,
+			expected: 0.0,
+		},
+		"len with input string": {
+			query:    `len($)`,
+			input:    "hello world",
+			expected: 11.0,
+		},
+		"len with input list": {
+			query:    `len($)`,
+			input:    []any{1, 2, 3},
+			expected: 3.0,
+		},
+		"len with input map": {
+			query:    `len($)`,
+			input:    map[string]any{"a": 1, "b": 2, "c": 3},
+			expected: 3.0,
+		},
+		"len in complex expression": {
+			query:    `len("test") + 2`,
+			expected: 6.0,
+		},
+		"len in comparison": {
+			query:    `len("hello") == 5`,
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Function_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query           string
+		input           any
+		expectedError    error
+	}{
+		"undefined function": {
+			query:        `unknown("test")`,
+			expectedError: runtime.ErrUndefinedFunction,
+		},
+		"len with too many arguments": {
+			query:        `len("hello", "world")`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"len with no arguments": {
+			query:        `len()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"len with number": {
+			query:        `len(123)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"len with boolean": {
+			query:        `len(true)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"len with input number": {
+			query:        `len($)`,
+			input:        42,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"len with input boolean": {
+			query:        `len($)`,
+			input:        true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, tc.input)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedError, "Error should be of expected type")
+		})
+	}
+}

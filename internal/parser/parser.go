@@ -28,6 +28,7 @@ func init() {
 		lexer.TokenType_LeftBracket:   parseList,
 		lexer.TokenType_LeftBrace:     parseMapLiteral,
 		lexer.TokenType_Minus:         parseUnaryMinus,
+		lexer.TokenType_Label:         parseLabelOrFunction,
 	}
 
 	operatorMap = map[int]operatorFunc{
@@ -582,4 +583,104 @@ func (p *Parser) parseMapIndex(mapExpr Expr) (expr Expr, err error) {
 		Map:   mapExpr,
 		Index: indexExpr,
 	})
+}
+
+// parseLabelOrFunction parses a label token, checking if it's followed by a left parenthesis to determine if it's a function call.
+// parseLabelOrFunction implements parseFunc.
+func parseLabelOrFunction(p *Parser, tok lexer.Token) (expr Expr, err error) {
+	// Peek at the next token to see if it's a left parenthesis
+	nextTok, peekErr := p.lexer.PeekToken()
+	if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", peekErr)
+		return
+	}
+
+	if nextTok.Type == lexer.TokenType_LeftParan {
+		// This is a function call
+		return p.parseFunction(tok.Value)
+	}
+
+	// This is just a regular label (which should be an error in current grammar)
+	err = fmt.Errorf("%w: %v", ErrUndefinedToken, tok.Value)
+	return
+}
+
+// parseFunction parses a function call with the given name.
+func (p *Parser) parseFunction(functionName string) (expr Expr, err error) {
+	// Consume the left parenthesis
+	leftParanTok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+	if leftParanTok.Type != lexer.TokenType_LeftParan {
+		err = fmt.Errorf("%w LeftParan, got %s", ErrExpectedToken, leftParanTok)
+		return
+	}
+
+	var args []Expr
+
+	// Peek at the next token to see if it's a right parenthesis (empty argument list)
+	nextTok, peekErr := p.lexer.PeekToken()
+	if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", peekErr)
+		return
+	}
+
+	if nextTok.Type == lexer.TokenType_RightParan {
+		// Empty argument list, consume the right parenthesis
+		p.lexer.GetToken()
+		return ExprFunction{
+			Name: functionName,
+			Args: args,
+		}, nil
+	}
+
+	// Parse the first argument
+	firstArg, parseErr := p.Parse()
+	if parseErr != nil {
+		err = fmt.Errorf("failed to parse first function argument: %w", parseErr)
+		return
+	}
+	args = append(args, firstArg)
+
+	// Check for comma-separated arguments
+	for {
+		nextTok, peekErr = p.lexer.PeekToken()
+		if peekErr != nil {
+			if errors.Is(peekErr, io.EOF) {
+				err = fmt.Errorf("%w RightParan, got EOF", ErrExpectedToken)
+			} else {
+				err = fmt.Errorf("failed to peek token: %w", peekErr)
+			}
+			return
+		}
+
+		if nextTok.Type == lexer.TokenType_RightParan {
+			// End of argument list, consume the right parenthesis
+			p.lexer.GetToken()
+			break
+		}
+
+		if nextTok.Type != lexer.TokenType_Comma {
+			err = fmt.Errorf("%w comma or RightParan in function arguments, got %s", ErrExpectedToken, nextTok)
+			return
+		}
+
+		// Consume the comma
+		p.lexer.GetToken()
+
+		// Parse the next argument
+		nextArg, parseErr := p.Parse()
+		if parseErr != nil {
+			err = fmt.Errorf("failed to parse function argument: %w", parseErr)
+			return
+		}
+		args = append(args, nextArg)
+	}
+
+	return ExprFunction{
+		Name: functionName,
+		Args: args,
+	}, nil
 }

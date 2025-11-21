@@ -9,18 +9,23 @@ import (
 )
 
 var (
-	ErrIncompatibleTypes = errors.New("incompatible types")
-	ErrDivisionByZero    = errors.New("division by zero")
-	ErrBooleanOperation  = errors.New("boolean operation requires boolean expressions")
-	ErrIndexOutOfBounds  = errors.New("list index out of bounds")
-	ErrInvalidIndex      = errors.New("invalid list index")
-	ErrKeyNotFound       = errors.New("map key not found")
-	ErrInvalidMapIndex   = errors.New("invalid map index")
+	ErrIncompatibleTypes    = errors.New("incompatible types")
+	ErrDivisionByZero       = errors.New("division by zero")
+	ErrBooleanOperation     = errors.New("boolean operation requires boolean expressions")
+	ErrIndexOutOfBounds     = errors.New("list index out of bounds")
+	ErrInvalidIndex         = errors.New("invalid list index")
+	ErrKeyNotFound          = errors.New("map key not found")
+	ErrInvalidMapIndex      = errors.New("invalid map index")
+	ErrUndefinedFunction    = errors.New("undefined function")
+	ErrInvalidArgumentCount = errors.New("invalid argument count")
+	ErrInvalidArgumentType  = errors.New("invalid argument type")
 )
 
 type evalFunc func(parser.Expr, any) (parser.Expr, error)
+type functionFunc func([]parser.Expr, any) (parser.Expr, error)
 
 var evalFuncMap map[int]evalFunc
+var functionRegistry map[string]functionFunc
 
 func init() {
 	evalFuncMap = map[int]evalFunc{
@@ -46,6 +51,11 @@ func init() {
 		parser.ExprType_ListIndex:          evalListIndex,
 		parser.ExprType_Map:                evalMap,
 		parser.ExprType_MapIndex:           evalMapIndex,
+		parser.ExprType_Function:           evalFunction,
+	}
+
+	functionRegistry = map[string]functionFunc{
+		"len": evalLenFunction,
 	}
 }
 
@@ -1427,6 +1437,81 @@ func areExpressionsEqual(expr1, expr2 parser.Expr) (bool, error) {
 
 	// For other cross-type comparisons, they don't match
 	return false, nil
+}
+
+// evalFunction evaluates a function call expression.
+func evalFunction(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprFunction, ok := expr.(parser.ExprFunction)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as function")
+		return
+	}
+
+	// Look up the function in the registry
+	functionFunc, exists := functionRegistry[exprFunction.Name]
+	if !exists {
+		err = fmt.Errorf("%w: %s", ErrUndefinedFunction, exprFunction.Name)
+		return
+	}
+
+	// Call the function with the evaluated arguments
+	return functionFunc(exprFunction.Args, input)
+}
+
+// evalLenFunction implements the len() built-in function.
+// Returns the length of strings, lists, and maps.
+func evalLenFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 {
+		err = fmt.Errorf("%w: len() expects exactly 1 argument, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate the argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate len() argument: %w", err)
+		return
+	}
+
+	switch argExpr.Type() {
+	case parser.ExprType_String:
+		exprString, ok := argExpr.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as string")
+			return
+		}
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(len(exprString.Value)))}, nil
+
+	case parser.ExprType_List:
+		exprList, ok := argExpr.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as list")
+			return
+		}
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(len(exprList.Values)))}, nil
+
+	case parser.ExprType_Map:
+		exprMap, ok := argExpr.(parser.ExprMap)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as map")
+			return
+		}
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(len(exprMap.Pairs)))}, nil
+
+	case parser.ExprType_Number:
+		// For numbers, return error as per ticket specification
+		err = fmt.Errorf("%w: len() cannot be applied to numbers", ErrInvalidArgumentType)
+		return
+
+	case parser.ExprType_Boolean:
+		// For booleans, return error as per ticket specification
+		err = fmt.Errorf("%w: len() cannot be applied to booleans", ErrInvalidArgumentType)
+		return
+
+	default:
+		err = fmt.Errorf("%w: len() cannot be applied to type %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
 }
 
 // convertInputToExpr converts input data to appropriate expression types.

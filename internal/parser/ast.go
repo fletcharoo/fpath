@@ -30,12 +30,14 @@ const (
 	ExprType_ListIndex
 	ExprType_Map
 	ExprType_MapIndex
+	ExprType_Function
 )
 
 var (
-	ErrInvalidDecode  = errors.New("cannot decode expression")
-	ErrUndefinedToken = errors.New("undefined token")
-	ErrExpectedToken  = errors.New("expected token")
+	ErrInvalidDecode     = errors.New("cannot decode expression")
+	ErrUndefinedToken    = errors.New("undefined token")
+	ErrExpectedToken     = errors.New("expected token")
+	ErrUndefinedFunction = errors.New("undefined function")
 )
 
 // Expr represents an evaluable expression.
@@ -67,6 +69,7 @@ func (ExprList) Type() int               { return ExprType_List }
 func (ExprListIndex) Type() int          { return ExprType_ListIndex }
 func (ExprMap) Type() int                { return ExprType_Map }
 func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
+func (ExprFunction) Type() int           { return ExprType_Function }
 
 func (ExprBlock) String() string              { return "Block" }
 func (ExprNumber) String() string             { return "Number" }
@@ -89,6 +92,7 @@ func (ExprList) String() string               { return "List" }
 func (ExprListIndex) String() string          { return "ListIndex" }
 func (ExprMap) String() string                { return "Map" }
 func (ExprMapIndex) String() string           { return "MapIndex" }
+func (ExprFunction) String() string           { return "Function" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -320,6 +324,17 @@ type ExprMapIndex struct {
 }
 
 func (e ExprMapIndex) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprFunction represents a function call with a name and arguments.
+type ExprFunction struct {
+	Name string
+	Args []Expr
+}
+
+func (e ExprFunction) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }
