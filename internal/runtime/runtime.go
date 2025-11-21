@@ -13,14 +13,16 @@ var (
 	ErrBooleanOperation  = errors.New("boolean operation requires boolean expressions")
 	ErrIndexOutOfBounds  = errors.New("list index out of bounds")
 	ErrInvalidIndex      = errors.New("invalid list index")
+	ErrKeyNotFound       = errors.New("map key not found")
+	ErrInvalidMapIndex   = errors.New("invalid map index")
 )
 
 type evalFunc func(parser.Expr, any) (parser.Expr, error)
 
-var evalMap map[int]evalFunc
+var evalFuncMap map[int]evalFunc
 
 func init() {
-	evalMap = map[int]evalFunc{
+	evalFuncMap = map[int]evalFunc{
 		parser.ExprType_Undefined:          evalUndefined,
 		parser.ExprType_Block:              evalBlock,
 		parser.ExprType_Number:             evalLiteral,
@@ -40,13 +42,15 @@ func init() {
 		parser.ExprType_Or:                 evalOr,
 		parser.ExprType_List:               evalList,
 		parser.ExprType_ListIndex:          evalListIndex,
+		parser.ExprType_Map:                evalMap,
+		parser.ExprType_MapIndex:           evalMapIndex,
 	}
 }
 
 // Eval accepts a parsed expression and the query's input data and returns the
 // evaluated result
 func Eval(expr parser.Expr, input any) (result parser.Expr, err error) {
-	f, ok := evalMap[expr.Type()]
+	f, ok := evalFuncMap[expr.Type()]
 	if !ok {
 		return evalUndefined(nil, nil)
 	}
@@ -1255,4 +1259,165 @@ func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
 
 	// Return the element at the index
 	return list.Values[index], nil
+}
+
+// evalMap evaluates a map expression by evaluating all its key-value pairs.
+func evalMap(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprMap, ok := expr.(parser.ExprMap)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as map")
+		return
+	}
+
+	var evaluatedPairs []parser.ExprMapPair
+	for _, pair := range exprMap.Pairs {
+		// Evaluate the key expression
+		evaluatedKey, err := Eval(pair.Key, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate map key: %w", err)
+			return nil, err
+		}
+
+		// Evaluate the value expression
+		evaluatedValue, err := Eval(pair.Value, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate map value: %w", err)
+			return nil, err
+		}
+
+		evaluatedPairs = append(evaluatedPairs, parser.ExprMapPair{
+			Key:   evaluatedKey,
+			Value: evaluatedValue,
+		})
+	}
+
+	return parser.ExprMap{
+		Pairs: evaluatedPairs,
+	}, nil
+}
+
+// evalMapIndex evaluates a map indexing operation.
+func evalMapIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprMapIndex, ok := expr.(parser.ExprMapIndex)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as map index")
+		return
+	}
+
+	// Evaluate the map expression
+	mapExpr, err := Eval(exprMapIndex.Map, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate map expression: %w", err)
+		return
+	}
+
+	// Check if it's actually a map
+	if mapExpr.Type() != parser.ExprType_Map {
+		err = fmt.Errorf("%w: cannot index into non-map expression of type %d", ErrInvalidMapIndex, mapExpr.Type())
+		return
+	}
+
+	mapValue, ok := mapExpr.(parser.ExprMap)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as map")
+		return
+	}
+
+	// Evaluate the index expression
+	indexExpr, err := Eval(exprMapIndex.Index, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate index expression: %w", err)
+		return
+	}
+
+	// Search for the key in the map
+	for _, pair := range mapValue.Pairs {
+		// Compare keys for equality
+		isEqual, err := areExpressionsEqual(pair.Key, indexExpr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compare map keys: %w", err)
+		}
+
+		if isEqual {
+			return pair.Value, nil
+		}
+	}
+
+	// Key not found
+	err = fmt.Errorf("%w: key %v not found in map", ErrKeyNotFound, indexExpr)
+	return
+}
+
+// areExpressionsEqual checks if two expressions are equal for map key comparison.
+func areExpressionsEqual(expr1, expr2 parser.Expr) (bool, error) {
+	// If both expressions are of the same type, compare directly
+	if expr1.Type() == expr2.Type() {
+		switch expr1.Type() {
+		case parser.ExprType_String:
+			str1, ok1 := expr1.(parser.ExprString)
+			str2, ok2 := expr2.(parser.ExprString)
+			if !ok1 || !ok2 {
+				return false, fmt.Errorf("failed to assert expressions as strings")
+			}
+			return str1.Value == str2.Value, nil
+
+		case parser.ExprType_Number:
+			num1, ok1 := expr1.(parser.ExprNumber)
+			num2, ok2 := expr2.(parser.ExprNumber)
+			if !ok1 || !ok2 {
+				return false, fmt.Errorf("failed to assert expressions as numbers")
+			}
+			return num1.Value.Equal(num2.Value), nil
+
+		case parser.ExprType_Boolean:
+			bool1, ok1 := expr1.(parser.ExprBoolean)
+			bool2, ok2 := expr2.(parser.ExprBoolean)
+			if !ok1 || !ok2 {
+				return false, fmt.Errorf("failed to assert expressions as booleans")
+			}
+			return bool1.Value == bool2.Value, nil
+
+		default:
+			// For other types, we don't support them as map keys
+			return false, fmt.Errorf("unsupported map key type: %s", expr1.String())
+		}
+	}
+
+	// For cross-type comparisons, try to convert and compare
+	// Support String <-> Number comparisons for map key flexibility
+	if (expr1.Type() == parser.ExprType_String && expr2.Type() == parser.ExprType_Number) ||
+		(expr1.Type() == parser.ExprType_Number && expr2.Type() == parser.ExprType_String) {
+
+		// Convert both to string and compare
+		str1, err1 := expr1.Decode()
+		if err1 != nil {
+			return false, fmt.Errorf("failed to decode expression 1: %w", err1)
+		}
+
+		str2, err2 := expr2.Decode()
+		if err2 != nil {
+			return false, fmt.Errorf("failed to decode expression 2: %w", err2)
+		}
+
+		// Convert to string and compare
+		str1Str, ok1 := str1.(string)
+		if !ok1 {
+			return false, fmt.Errorf("expression 1 is not a string after decode")
+		}
+
+		str2Str, ok2 := str2.(string)
+		if !ok2 {
+			// If expr2 is a number, convert it to string
+			if num2, ok2 := str2.(float64); ok2 {
+				str2Str = fmt.Sprintf("%g", num2)
+			} else {
+				return false, fmt.Errorf("expression 2 is not a string or number after decode")
+			}
+		}
+
+		return str1Str == str2Str, nil
+	}
+
+	// For other cross-type comparisons, they don't match
+	return false, nil
 }

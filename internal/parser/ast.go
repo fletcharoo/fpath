@@ -27,6 +27,8 @@ const (
 	ExprType_Boolean
 	ExprType_List
 	ExprType_ListIndex
+	ExprType_Map
+	ExprType_MapIndex
 )
 
 var (
@@ -61,6 +63,8 @@ func (ExprOr) Type() int                 { return ExprType_Or }
 func (ExprBoolean) Type() int            { return ExprType_Boolean }
 func (ExprList) Type() int               { return ExprType_List }
 func (ExprListIndex) Type() int          { return ExprType_ListIndex }
+func (ExprMap) Type() int                { return ExprType_Map }
+func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 
 func (ExprBlock) String() string              { return "Block" }
 func (ExprNumber) String() string             { return "Number" }
@@ -80,6 +84,8 @@ func (ExprOr) String() string                 { return "Or" }
 func (ExprBoolean) String() string            { return "Boolean" }
 func (ExprList) String() string               { return "List" }
 func (ExprListIndex) String() string          { return "ListIndex" }
+func (ExprMap) String() string                { return "Map" }
+func (ExprMapIndex) String() string           { return "MapIndex" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -275,6 +281,33 @@ type ExprListIndex struct {
 }
 
 func (e ExprListIndex) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprMap represents a map literal containing zero or more key-value pairs.
+type ExprMap struct {
+	Pairs []ExprMapPair
+}
+
+func (e ExprMap) Decode() (result any, err error) {
+	result = e
+	return result, nil
+}
+
+// ExprMapPair represents a key-value pair in a map.
+type ExprMapPair struct {
+	Key   Expr
+	Value Expr
+}
+
+// ExprMapIndex represents an indexing operation into a map expression.
+type ExprMapIndex struct {
+	Map   Expr
+	Index Expr
+}
+
+func (e ExprMapIndex) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

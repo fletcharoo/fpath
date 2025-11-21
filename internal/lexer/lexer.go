@@ -29,6 +29,9 @@ const (
 	TokenType_RightParan
 	TokenType_LeftBracket
 	TokenType_RightBracket
+	TokenType_LeftBrace
+	TokenType_RightBrace
+	TokenType_Colon
 	TokenType_Comma
 )
 
@@ -55,6 +58,9 @@ var (
 		TokenType_RightParan:         "RightParan",
 		TokenType_LeftBracket:        "LeftBracket",
 		TokenType_RightBracket:       "RightBracket",
+		TokenType_LeftBrace:          "LeftBrace",
+		TokenType_RightBrace:         "RightBrace",
+		TokenType_Colon:              "Colon",
 		TokenType_Comma:              "Comma",
 	}
 )
@@ -281,6 +287,21 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_RightBracket,
+			}, nil
+		case '{':
+			l.index++
+			return Token{
+				Type: TokenType_LeftBrace,
+			}, nil
+		case '}':
+			l.index++
+			return Token{
+				Type: TokenType_RightBrace,
+			}, nil
+		case ':':
+			l.index++
+			return Token{
+				Type: TokenType_Colon,
 			}, nil
 		case ',':
 			l.index++

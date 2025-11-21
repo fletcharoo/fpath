@@ -6,6 +6,7 @@ import (
 	"github.com/fletcharoo/fpath/internal/lexer"
 	"github.com/fletcharoo/fpath/internal/parser"
 	"github.com/fletcharoo/fpath/internal/runtime"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1868,7 +1869,216 @@ func Test_Eval_ListIndex_Errors(t *testing.T) {
 		},
 		"non-number index": {
 			query:             `[1, 2, 3]["hello"]`,
-			expectedErrorType: runtime.ErrInvalidIndex,
+			expectedErrorType: runtime.ErrInvalidMapIndex,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedErrorType, "Error should be of expected type")
+		})
+	}
+}
+
+func Test_Eval_Map(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		validate func(any, error)
+	}{
+		"empty map": {
+			query: "{}",
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 0, len(mapExpr.Pairs), "Expected 0 pairs")
+			},
+		},
+		"single pair": {
+			query: `{"key": "value"}`,
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 1, len(mapExpr.Pairs), "Expected 1 pair")
+
+				// Check key
+				keyExpr := mapExpr.Pairs[0].Key
+				require.Equal(t, parser.ExprType_String, keyExpr.Type(), "Expected String key")
+				keyStr, ok := keyExpr.(parser.ExprString)
+				require.True(t, ok, "Expected ExprString key")
+				require.Equal(t, "key", keyStr.Value, "Expected key 'key'")
+
+				// Check value
+				valueExpr := mapExpr.Pairs[0].Value
+				require.Equal(t, parser.ExprType_String, valueExpr.Type(), "Expected String value")
+				valueStr, ok := valueExpr.(parser.ExprString)
+				require.True(t, ok, "Expected ExprString value")
+				require.Equal(t, "value", valueStr.Value, "Expected value 'value'")
+			},
+		},
+		"multiple pairs": {
+			query: `{"name": "Andrew", "age": 30}`,
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 2, len(mapExpr.Pairs), "Expected 2 pairs")
+			},
+		},
+		"mixed types": {
+			query: `{"name": "Andrew", 1: true, "active": false}`,
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 3, len(mapExpr.Pairs), "Expected 3 pairs")
+
+				// Check first pair (string key, string value)
+				require.Equal(t, parser.ExprType_String, mapExpr.Pairs[0].Key.Type(), "Expected String key")
+				require.Equal(t, parser.ExprType_String, mapExpr.Pairs[0].Value.Type(), "Expected String value")
+
+				// Check second pair (number key, boolean value)
+				require.Equal(t, parser.ExprType_Number, mapExpr.Pairs[1].Key.Type(), "Expected Number key")
+				require.Equal(t, parser.ExprType_Boolean, mapExpr.Pairs[1].Value.Type(), "Expected Boolean value")
+
+				// Check third pair (string key, boolean value)
+				require.Equal(t, parser.ExprType_String, mapExpr.Pairs[2].Key.Type(), "Expected String key")
+				require.Equal(t, parser.ExprType_Boolean, mapExpr.Pairs[2].Value.Type(), "Expected Boolean value")
+			},
+		},
+		"nested map": {
+			query: `{"outer": {"inner": "value"}}`,
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 1, len(mapExpr.Pairs), "Expected 1 pair")
+
+				// Check that the value is a nested map
+				valueExpr := mapExpr.Pairs[0].Value
+				require.Equal(t, parser.ExprType_Map, valueExpr.Type(), "Expected nested Map value")
+
+				nestedMap, ok := valueExpr.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap value")
+				require.Equal(t, 1, len(nestedMap.Pairs), "Expected 1 pair in nested map")
+			},
+		},
+		"map with expressions": {
+			query: `{"sum": 1+2, "concat": "a" + "b"}`,
+			validate: func(result any, err error) {
+				require.NoError(t, err, "Unexpected runtime error")
+
+				mapExpr, ok := result.(parser.ExprMap)
+				require.True(t, ok, "Expected ExprMap result")
+				require.Equal(t, 2, len(mapExpr.Pairs), "Expected 2 pairs")
+
+				// Check that expressions were evaluated
+				// First pair: 1+2 should be evaluated to 3
+				valueExpr1 := mapExpr.Pairs[0].Value
+				require.Equal(t, parser.ExprType_Number, valueExpr1.Type(), "Expected evaluated Number value")
+				num1, ok := valueExpr1.(parser.ExprNumber)
+				require.True(t, ok, "Expected ExprNumber")
+				expectedNum1, _ := decimal.NewFromString("3")
+				require.True(t, num1.Value.Equal(expectedNum1), "Expected 1+2 = 3")
+
+				// Second pair: "a"+"b" should be evaluated to "ab"
+				valueExpr2 := mapExpr.Pairs[1].Value
+				require.Equal(t, parser.ExprType_String, valueExpr2.Type(), "Expected evaluated String value")
+				str2, ok := valueExpr2.(parser.ExprString)
+				require.True(t, ok, "Expected ExprString")
+				require.Equal(t, "ab", str2.Value, "Expected 'a'+'b' = 'ab'")
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			tc.validate(result, err)
+		})
+	}
+}
+
+func Test_Eval_MapIndex(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected any
+	}{
+		"string key indexing": {
+			query:    `{"name": "Andrew"}["name"]`,
+			expected: "Andrew",
+		},
+		"number key indexing": {
+			query:    `{1: "value"}[1]`,
+			expected: "value",
+		},
+		"boolean key indexing": {
+			query:    `{true: "value"}[true]`,
+			expected: "value",
+		},
+		"nested indexing": {
+			query:    `{"outer": {"inner": "value"}}["outer"]["inner"]`,
+			expected: "value",
+		},
+		"indexing with evaluated expressions": {
+			query:    `{"1": "first", "2": "second"}[1+1]`,
+			expected: "second",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_MapIndex_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query             string
+		expectedErrorType error
+	}{
+		"key not found": {
+			query:             `{"name": "Andrew"}["age"]`,
+			expectedErrorType: runtime.ErrKeyNotFound,
+		},
+		"indexing non-map": {
+			query:             `123["key"]`,
+			expectedErrorType: runtime.ErrInvalidMapIndex,
+		},
+		"indexing list as map": {
+			query:             `[1, 2, 3]["key"]`,
+			expectedErrorType: runtime.ErrInvalidMapIndex,
+		},
+		"indexing string as map": {
+			query:             `"hello"["key"]`,
+			expectedErrorType: runtime.ErrInvalidMapIndex,
 		},
 	}
 

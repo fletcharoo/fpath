@@ -25,6 +25,7 @@ func init() {
 		lexer.TokenType_StringLiteral: parseString,
 		lexer.TokenType_Boolean:       parseBoolean,
 		lexer.TokenType_LeftBracket:   parseList,
+		lexer.TokenType_LeftBrace:     parseMapLiteral,
 		lexer.TokenType_Minus:         parseUnaryMinus,
 	}
 
@@ -93,9 +94,27 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 		return
 	}
 
-	// Check for list indexing first (higher precedence)
+	// Check for indexing first (higher precedence)
 	if tok.Type == lexer.TokenType_LeftBracket {
-		return p.parseListIndex(expr)
+		// Consume the left bracket first
+		p.lexer.GetToken() // Consume the LeftBracket from tok
+
+		// Now peek at the next token to determine operation type
+		nextTok, err := p.lexer.PeekToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to peek token: %w", err)
+		}
+
+		// Use map indexing if:
+		// 1. Expression being indexed is a map or map index
+		// 2. Expression being indexed is not a list AND index is a string literal
+		// 3. Expression being indexed is a list AND index is a string literal (invalid map access)
+		// Otherwise, use list indexing
+		if expr.Type() == ExprType_Map || expr.Type() == ExprType_MapIndex || nextTok.Type == lexer.TokenType_StringLiteral {
+			return p.parseMapIndex(expr)
+		} else {
+			return p.parseListIndex(expr)
+		}
 	}
 
 	f, ok := operatorMap[tok.Type]
@@ -264,6 +283,118 @@ func parseList(p *Parser, _ lexer.Token) (expr Expr, err error) {
 	}, nil
 }
 
+// parseMapLiteral parses a map literal token.
+// parseMapLiteral implements parseFunc.
+func parseMapLiteral(p *Parser, _ lexer.Token) (expr Expr, err error) {
+	var pairs []ExprMapPair
+
+	// Peek at the next token to see if it's a right brace (empty map)
+	nextTok, peekErr := p.lexer.PeekToken()
+	if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", peekErr)
+		return
+	}
+
+	if nextTok.Type == lexer.TokenType_RightBrace {
+		// Empty map, consume the right brace
+		p.lexer.GetToken()
+		return ExprMap{
+			Pairs: pairs,
+		}, nil
+	}
+
+	// Parse the first key-value pair
+	keyExpr, parseErr := p.Parse()
+	if parseErr != nil {
+		err = fmt.Errorf("failed to parse first map key: %w", parseErr)
+		return
+	}
+
+	// Expect a colon
+	colonTok, colonErr := p.lexer.GetToken()
+	if colonErr != nil {
+		err = fmt.Errorf("failed to get token: %w", colonErr)
+		return
+	}
+	if colonTok.Type != lexer.TokenType_Colon {
+		err = fmt.Errorf("%w Colon after map key, got %s", ErrExpectedToken, colonTok)
+		return
+	}
+
+	// Parse the value
+	valueExpr, parseErr := p.Parse()
+	if parseErr != nil {
+		err = fmt.Errorf("failed to parse first map value: %w", parseErr)
+		return
+	}
+
+	pairs = append(pairs, ExprMapPair{
+		Key:   keyExpr,
+		Value: valueExpr,
+	})
+
+	// Check for comma-separated pairs
+	for {
+		nextTok, peekErr = p.lexer.PeekToken()
+		if peekErr != nil {
+			if errors.Is(peekErr, io.EOF) {
+				err = fmt.Errorf("%w RightBrace, got EOF", ErrExpectedToken)
+			} else {
+				err = fmt.Errorf("failed to peek token: %w", peekErr)
+			}
+			return
+		}
+
+		if nextTok.Type == lexer.TokenType_RightBrace {
+			// End of map, consume the right brace
+			p.lexer.GetToken()
+			break
+		}
+
+		if nextTok.Type != lexer.TokenType_Comma {
+			err = fmt.Errorf("%w comma or RightBrace in map, got %s", ErrExpectedToken, nextTok)
+			return
+		}
+
+		// Consume the comma
+		p.lexer.GetToken()
+
+		// Parse the next key
+		nextKeyExpr, parseErr := p.Parse()
+		if parseErr != nil {
+			err = fmt.Errorf("failed to parse map key: %w", parseErr)
+			return
+		}
+
+		// Expect a colon
+		nextColonTok, colonErr := p.lexer.GetToken()
+		if colonErr != nil {
+			err = fmt.Errorf("failed to get token: %w", colonErr)
+			return
+		}
+		if nextColonTok.Type != lexer.TokenType_Colon {
+			err = fmt.Errorf("%w Colon after map key, got %s", ErrExpectedToken, nextColonTok)
+			return
+		}
+
+		// Parse the next value
+		nextValueExpr, parseErr := p.Parse()
+		if parseErr != nil {
+			err = fmt.Errorf("failed to parse map value: %w", parseErr)
+			return
+		}
+
+		pairs = append(pairs, ExprMapPair{
+			Key:   nextKeyExpr,
+			Value: nextValueExpr,
+		})
+	}
+
+	return ExprMap{
+		Pairs: pairs,
+	}, nil
+}
+
 // operatorAdd wraps two expressions in an add expression.
 // operatorAdd implements operatorFunc.
 func operatorAdd(expr1 Expr, expr2 Expr) (op Expr) {
@@ -379,13 +510,6 @@ func (p *Parser) parseListIndex(listExpr Expr) (expr Expr, err error) {
 		return
 	}
 
-	// Consume the left bracket
-	_, err = p.lexer.GetToken()
-	if err != nil {
-		err = fmt.Errorf("failed to get left bracket token: %w", err)
-		return
-	}
-
 	// Parse the index expression
 	indexExpr, err := p.Parse()
 	if err != nil {
@@ -408,6 +532,39 @@ func (p *Parser) parseListIndex(listExpr Expr) (expr Expr, err error) {
 	// Check for chained indexing (e.g., [1,2,3][0][1])
 	return p.wrapOperation(ExprListIndex{
 		List:  listExpr,
+		Index: indexExpr,
+	})
+}
+
+// parseMapIndex parses a map indexing operation.
+func (p *Parser) parseMapIndex(mapExpr Expr) (expr Expr, err error) {
+	if p == nil {
+		err = fmt.Errorf("parser is nil")
+		return
+	}
+
+	// Parse the index expression
+	indexExpr, err := p.Parse()
+	if err != nil {
+		err = fmt.Errorf("failed to parse map index: %w", err)
+		return
+	}
+
+	// Expect a right bracket
+	tok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+
+	if tok.Type != lexer.TokenType_RightBracket {
+		err = fmt.Errorf("%w RightBracket, got %s", ErrExpectedToken, tok)
+		return
+	}
+
+	// Check for chained indexing (e.g., {"a": {"b": 1}}["a"]["b"])
+	return p.wrapOperation(ExprMapIndex{
+		Map:   mapExpr,
 		Index: indexExpr,
 	})
 }

@@ -821,3 +821,260 @@ func Test_Expr_Type(t *testing.T) {
 		})
 	}
 }
+
+func Test_Parser_Parse_Map(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		validate func(Expr, error)
+	}{
+		"Empty map": {
+			input: "{}",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Map {
+					t.Fatalf("Expected Map type, got %d", expr.Type())
+				}
+				mapExpr, ok := expr.(ExprMap)
+				if !ok {
+					t.Fatalf("Expected ExprMap, got %T", expr)
+				}
+				if len(mapExpr.Pairs) != 0 {
+					t.Fatalf("Expected 0 pairs, got %d", len(mapExpr.Pairs))
+				}
+			},
+		},
+		"Single pair": {
+			input: `{"key": "value"}`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Map {
+					t.Fatalf("Expected Map type, got %d", expr.Type())
+				}
+				mapExpr, ok := expr.(ExprMap)
+				if !ok {
+					t.Fatalf("Expected ExprMap, got %T", expr)
+				}
+				if len(mapExpr.Pairs) != 1 {
+					t.Fatalf("Expected 1 pair, got %d", len(mapExpr.Pairs))
+				}
+				// Check key
+				if mapExpr.Pairs[0].Key.Type() != ExprType_String {
+					t.Fatalf("Expected String key, got %d", mapExpr.Pairs[0].Key.Type())
+				}
+				keyStr, ok := mapExpr.Pairs[0].Key.(ExprString)
+				if !ok || keyStr.Value != "key" {
+					t.Fatalf("Expected key 'key', got %v", mapExpr.Pairs[0].Key)
+				}
+				// Check value
+				if mapExpr.Pairs[0].Value.Type() != ExprType_String {
+					t.Fatalf("Expected String value, got %d", mapExpr.Pairs[0].Value.Type())
+				}
+				valueStr, ok := mapExpr.Pairs[0].Value.(ExprString)
+				if !ok || valueStr.Value != "value" {
+					t.Fatalf("Expected value 'value', got %v", mapExpr.Pairs[0].Value)
+				}
+			},
+		},
+		"Multiple pairs": {
+			input: `{"name": "Andrew", "age": 30}`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Map {
+					t.Fatalf("Expected Map type, got %d", expr.Type())
+				}
+				mapExpr, ok := expr.(ExprMap)
+				if !ok {
+					t.Fatalf("Expected ExprMap, got %T", expr)
+				}
+				if len(mapExpr.Pairs) != 2 {
+					t.Fatalf("Expected 2 pairs, got %d", len(mapExpr.Pairs))
+				}
+			},
+		},
+		"Mixed types": {
+			input: `{"name": "Andrew", 1: true, "active": false}`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Map {
+					t.Fatalf("Expected Map type, got %d", expr.Type())
+				}
+				mapExpr, ok := expr.(ExprMap)
+				if !ok {
+					t.Fatalf("Expected ExprMap, got %T", expr)
+				}
+				if len(mapExpr.Pairs) != 3 {
+					t.Fatalf("Expected 3 pairs, got %d", len(mapExpr.Pairs))
+				}
+			},
+		},
+		"Nested map": {
+			input: `{"outer": {"inner": "value"}}`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Map {
+					t.Fatalf("Expected Map type, got %d", expr.Type())
+				}
+				mapExpr, ok := expr.(ExprMap)
+				if !ok {
+					t.Fatalf("Expected ExprMap, got %T", expr)
+				}
+				if len(mapExpr.Pairs) != 1 {
+					t.Fatalf("Expected 1 pair, got %d", len(mapExpr.Pairs))
+				}
+				// Check that the value is a nested map
+				if mapExpr.Pairs[0].Value.Type() != ExprType_Map {
+					t.Fatalf("Expected nested Map value, got %d", mapExpr.Pairs[0].Value.Type())
+				}
+			},
+		},
+		"Invalid syntax - missing colon": {
+			input: `{"key" "value"}`,
+			validate: func(expr Expr, err error) {
+				if err == nil {
+					t.Fatalf("Expected error, but got none")
+				}
+				if !errors.Is(err, ErrExpectedToken) {
+					t.Fatalf("Expected ErrExpectedToken, got %s", err)
+				}
+			},
+		},
+		"Invalid syntax - missing right brace": {
+			input: `{"key": "value"`,
+			validate: func(expr Expr, err error) {
+				if err == nil {
+					t.Fatalf("Expected error, but got none")
+				}
+				if !errors.Is(err, ErrExpectedToken) {
+					t.Fatalf("Expected ErrExpectedToken, got %s", err)
+				}
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.input)
+			parser := New(lex)
+			expr, err := parser.Parse()
+			tc.validate(expr, err)
+		})
+	}
+}
+
+func Test_Parser_Parse_MapIndex(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		validate func(Expr, error)
+	}{
+		"String key indexing": {
+			input: `{"name": "Andrew"}["name"]`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_MapIndex {
+					t.Fatalf("Expected MapIndex type, got %d", expr.Type())
+				}
+				mapIndex, ok := expr.(ExprMapIndex)
+				if !ok {
+					t.Fatalf("Expected ExprMapIndex, got %T", expr)
+				}
+				// Check that the map expression is correct
+				if mapIndex.Map.Type() != ExprType_Map {
+					t.Fatalf("Expected Map expression, got %d", mapIndex.Map.Type())
+				}
+				// Check that the index expression is correct
+				if mapIndex.Index.Type() != ExprType_String {
+					t.Fatalf("Expected String index, got %d", mapIndex.Index.Type())
+				}
+			},
+		},
+		"Number key indexing": {
+			input: `{1: "value"}[1]`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_MapIndex {
+					t.Fatalf("Expected MapIndex type, got %d", expr.Type())
+				}
+				mapIndex, ok := expr.(ExprMapIndex)
+				if !ok {
+					t.Fatalf("Expected ExprMapIndex, got %T", expr)
+				}
+				// Check that the index expression is a number
+				if mapIndex.Index.Type() != ExprType_Number {
+					t.Fatalf("Expected Number index, got %d", mapIndex.Index.Type())
+				}
+			},
+		},
+		"Boolean key indexing": {
+			input: `{true: "value"}[true]`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_MapIndex {
+					t.Fatalf("Expected MapIndex type, got %d", expr.Type())
+				}
+				mapIndex, ok := expr.(ExprMapIndex)
+				if !ok {
+					t.Fatalf("Expected ExprMapIndex, got %T", expr)
+				}
+				// Check that the index expression is a boolean
+				if mapIndex.Index.Type() != ExprType_Boolean {
+					t.Fatalf("Expected Boolean index, got %d", mapIndex.Index.Type())
+				}
+			},
+		},
+		"Nested indexing": {
+			input: `{"outer": {"inner": "value"}}["outer"]["inner"]`,
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_MapIndex {
+					t.Fatalf("Expected MapIndex type, got %d", expr.Type())
+				}
+				mapIndex, ok := expr.(ExprMapIndex)
+				if !ok {
+					t.Fatalf("Expected ExprMapIndex, got %T", expr)
+				}
+				// Check that this is a nested indexing operation
+				if mapIndex.Map.Type() != ExprType_MapIndex {
+					t.Fatalf("Expected nested MapIndex, got %d", mapIndex.Map.Type())
+				}
+			},
+		},
+		"Invalid indexing - missing right bracket": {
+			input: `{"name": "Andrew"}["name"`,
+			validate: func(expr Expr, err error) {
+				if err == nil {
+					t.Fatalf("Expected error, but got none")
+				}
+				if !errors.Is(err, ErrExpectedToken) {
+					t.Fatalf("Expected ErrExpectedToken, got %s", err)
+				}
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.input)
+			parser := New(lex)
+			expr, err := parser.Parse()
+			tc.validate(expr, err)
+		})
+	}
+}
