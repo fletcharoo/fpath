@@ -12,6 +12,7 @@ const (
 	ExprType_Block
 	ExprType_Number
 	ExprType_String
+	ExprType_Input
 	ExprType_Add
 	ExprType_Subtract
 	ExprType_Multiply
@@ -48,6 +49,7 @@ type Expr interface {
 func (ExprBlock) Type() int              { return ExprType_Block }
 func (ExprNumber) Type() int             { return ExprType_Number }
 func (ExprString) Type() int             { return ExprType_String }
+func (ExprInput) Type() int              { return ExprType_Input }
 func (ExprAdd) Type() int                { return ExprType_Add }
 func (ExprSubtract) Type() int           { return ExprType_Subtract }
 func (ExprMultiply) Type() int           { return ExprType_Multiply }
@@ -69,6 +71,7 @@ func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 func (ExprBlock) String() string              { return "Block" }
 func (ExprNumber) String() string             { return "Number" }
 func (ExprString) String() string             { return "String" }
+func (ExprInput) String() string              { return "Input" }
 func (ExprAdd) String() string                { return "Add" }
 func (ExprSubtract) String() string           { return "Subtract" }
 func (ExprMultiply) String() string           { return "Multiply" }
@@ -120,6 +123,15 @@ type ExprString struct {
 func (e ExprString) Decode() (result any, err error) {
 	result = e.Value
 	return result, nil
+}
+
+// ExprInput represents the input data variable.
+type ExprInput struct {
+}
+
+func (e ExprInput) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
 }
 
 // ExprAdd represents an operation that adds two expressions together.

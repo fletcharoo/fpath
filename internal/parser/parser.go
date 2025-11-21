@@ -24,6 +24,7 @@ func init() {
 		lexer.TokenType_Number:        parseNumber,
 		lexer.TokenType_StringLiteral: parseString,
 		lexer.TokenType_Boolean:       parseBoolean,
+		lexer.TokenType_Dollar:        parseInput,
 		lexer.TokenType_LeftBracket:   parseList,
 		lexer.TokenType_LeftBrace:     parseMapLiteral,
 		lexer.TokenType_Minus:         parseUnaryMinus,
@@ -109,9 +110,16 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 		// 1. Expression being indexed is a map or map index
 		// 2. Expression being indexed is not a list AND index is a string literal
 		// 3. Expression being indexed is a list AND index is a string literal (invalid map access)
+		// 4. For ExprInput, decide based on index type (string -> map, number -> list)
 		// Otherwise, use list indexing
 		if expr.Type() == ExprType_Map || expr.Type() == ExprType_MapIndex || nextTok.Type == lexer.TokenType_StringLiteral {
 			return p.parseMapIndex(expr)
+		} else if expr.Type() == ExprType_Input {
+			if nextTok.Type == lexer.TokenType_StringLiteral {
+				return p.parseMapIndex(expr)
+			} else {
+				return p.parseListIndex(expr)
+			}
 		} else {
 			return p.parseListIndex(expr)
 		}
@@ -195,6 +203,13 @@ func parseBoolean(_ *Parser, tok lexer.Token) (expr Expr, err error) {
 	}
 
 	return exprBoolean, nil
+}
+
+// parseInput parses an input data variable token.
+// parseInput implements parseFunc.
+func parseInput(_ *Parser, _ lexer.Token) (expr Expr, err error) {
+	exprInput := ExprInput{}
+	return exprInput, nil
 }
 
 // parseUnaryMinus parses a unary minus expression.

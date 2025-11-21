@@ -116,6 +116,381 @@ func Test_Eval(t *testing.T) {
 	}
 }
 
+func Test_Eval_Input(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"input number": {
+			query:    "$",
+			input:    42,
+			expected: 42.0,
+		},
+		"input string": {
+			query:    "$",
+			input:    "hello",
+			expected: "hello",
+		},
+		"input boolean true": {
+			query:    "$",
+			input:    true,
+			expected: true,
+		},
+		"input boolean false": {
+			query:    "$",
+			input:    false,
+			expected: false,
+		},
+		"input float": {
+			query:    "$",
+			input:    3.0,
+			expected: 3.0,
+		},
+		"input int8": {
+			query:    "$",
+			input:    int8(8),
+			expected: 8.0,
+		},
+		"input int16": {
+			query:    "$",
+			input:    int16(16),
+			expected: 16.0,
+		},
+		"input int32": {
+			query:    "$",
+			input:    int32(32),
+			expected: 32.0,
+		},
+		"input int64": {
+			query:    "$",
+			input:    int64(64),
+			expected: 64.0,
+		},
+		"input uint": {
+			query:    "$",
+			input:    uint(10),
+			expected: 10.0,
+		},
+		"input uint8": {
+			query:    "$",
+			input:    uint8(8),
+			expected: 8.0,
+		},
+		"input uint16": {
+			query:    "$",
+			input:    uint16(16),
+			expected: 16.0,
+		},
+		"input uint32": {
+			query:    "$",
+			input:    uint32(32),
+			expected: 32.0,
+		},
+		"input uint64": {
+			query:    "$",
+			input:    uint64(64),
+			expected: 64.0,
+		},
+		"input float32": {
+			query:    "$",
+			input:    float32(3.0),
+			expected: 3.0,
+		},
+
+		"input with addition": {
+			query:    "$ + 3",
+			input:    1,
+			expected: 4.0,
+		},
+		"input with subtraction": {
+			query:    "$ - 2",
+			input:    10,
+			expected: 8.0,
+		},
+		"input with multiplication": {
+			query:    "$ * 3",
+			input:    5,
+			expected: 15.0,
+		},
+		"input with division": {
+			query:    "$ / 2",
+			input:    8,
+			expected: 4.0,
+		},
+		"input string concatenation": {
+			query:    `$ + " world"`,
+			input:    "hello",
+			expected: "hello world",
+		},
+		"input equality check": {
+			query:    "$ == 4",
+			input:    4,
+			expected: true,
+		},
+		"input inequality check": {
+			query:    "$ != 5",
+			input:    4,
+			expected: true,
+		},
+		"input greater than": {
+			query:    "$ > 3",
+			input:    4,
+			expected: true,
+		},
+		"input less than": {
+			query:    "$ < 5",
+			input:    4,
+			expected: true,
+		},
+		"input greater than or equal": {
+			query:    "$ >= 4",
+			input:    4,
+			expected: true,
+		},
+		"input less than or equal": {
+			query:    "$ <= 4",
+			input:    4,
+			expected: true,
+		},
+		"input list": {
+			query: "$",
+			input: []any{1, "two", true},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprNumber{Value: decimal.NewFromInt(1)},
+						parser.ExprString{Value: "two"},
+						parser.ExprBoolean{Value: true},
+					},
+				}
+			}(),
+		},
+		"input string list": {
+			query: "$",
+			input: []string{"a", "b", "c"},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprString{Value: "a"},
+						parser.ExprString{Value: "b"},
+						parser.ExprString{Value: "c"},
+					},
+				}
+			}(),
+		},
+		"input int list": {
+			query: "$",
+			input: []int{1, 2, 3},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprNumber{Value: decimal.NewFromInt(1)},
+						parser.ExprNumber{Value: decimal.NewFromInt(2)},
+						parser.ExprNumber{Value: decimal.NewFromInt(3)},
+					},
+				}
+			}(),
+		},
+		"input int64 list": {
+			query: "$",
+			input: []int64{10, 20, 30},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprNumber{Value: decimal.NewFromInt(10)},
+						parser.ExprNumber{Value: decimal.NewFromInt(20)},
+						parser.ExprNumber{Value: decimal.NewFromInt(30)},
+					},
+				}
+			}(),
+		},
+		"input float64 list": {
+			query: "$",
+			input: []float64{1.0, 2.0, 3.0},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprNumber{Value: decimal.NewFromFloat(1.0)},
+						parser.ExprNumber{Value: decimal.NewFromFloat(2.0)},
+						parser.ExprNumber{Value: decimal.NewFromFloat(3.0)},
+					},
+				}
+			}(),
+		},
+		"input map": {
+			query: "$",
+			input: map[string]any{"name": "Andrew", "age": 30},
+			expected: func() parser.ExprMap {
+				// Test by evaluating the expression and checking structure
+				result, _ := runtime.Eval(parser.ExprInput{}, map[string]any{"name": "Andrew", "age": 30})
+				mapExpr := result.(parser.ExprMap)
+				return mapExpr
+			}(),
+		},
+
+		"input nested map": {
+			query: "$",
+			input: map[string]any{"user": map[string]any{"name": "John", "age": 25}},
+			expected: func() parser.ExprMap {
+				return parser.ExprMap{
+					Pairs: []parser.ExprMapPair{
+						{Key: parser.ExprString{Value: "user"}, Value: parser.ExprMap{
+							Pairs: []parser.ExprMapPair{
+								{Key: parser.ExprString{Value: "name"}, Value: parser.ExprString{Value: "John"}},
+								{Key: parser.ExprString{Value: "age"}, Value: parser.ExprNumber{Value: decimal.NewFromInt(25)}},
+							},
+						}},
+					},
+				}
+			}(),
+		},
+		"input nested list": {
+			query: "$",
+			input: []any{[]any{1, 2}, []any{3, 4}},
+			expected: func() parser.ExprList {
+				return parser.ExprList{
+					Values: []parser.Expr{
+						parser.ExprList{
+							Values: []parser.Expr{
+								parser.ExprNumber{Value: decimal.NewFromInt(1)},
+								parser.ExprNumber{Value: decimal.NewFromInt(2)},
+							},
+						},
+						parser.ExprList{
+							Values: []parser.Expr{
+								parser.ExprNumber{Value: decimal.NewFromInt(3)},
+								parser.ExprNumber{Value: decimal.NewFromInt(4)},
+							},
+						},
+					},
+				}
+			}(),
+		},
+		"input complex nested": {
+			query: "$",
+			input: map[string]any{"items": []any{map[string]any{"id": 1}, map[string]any{"id": 2}}},
+			expected: func() parser.ExprMap {
+				return parser.ExprMap{
+					Pairs: []parser.ExprMapPair{
+						{Key: parser.ExprString{Value: "items"}, Value: parser.ExprList{
+							Values: []parser.Expr{
+								parser.ExprMap{
+									Pairs: []parser.ExprMapPair{
+										{Key: parser.ExprString{Value: "id"}, Value: parser.ExprNumber{Value: decimal.NewFromInt(1)}},
+									},
+								},
+								parser.ExprMap{
+									Pairs: []parser.ExprMapPair{
+										{Key: parser.ExprString{Value: "id"}, Value: parser.ExprNumber{Value: decimal.NewFromInt(2)}},
+									},
+								},
+							},
+						}},
+					},
+				}
+			}(),
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Input_Indexing(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"input list index": {
+			query:    "$[0]",
+			input:    []string{"first", "second"},
+			expected: "first",
+		},
+		"input list index number": {
+			query:    "$[1]",
+			input:    []int{10, 20, 30},
+			expected: 20.0,
+		},
+		"input map index string": {
+			query:    `$["name"]`,
+			input:    map[string]any{"name": "Andrew", "age": 30},
+			expected: "Andrew",
+		},
+		"input map index number as string": {
+			query:    `$["1"]`,
+			input:    map[string]any{"1": "one", "2": "two"},
+			expected: "one",
+		},
+		"input nested indexing": {
+			query:    `$["user"]["name"]`,
+			input:    map[string]any{"user": map[string]any{"name": "John"}},
+			expected: "John",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_Input_Error_Cases(t *testing.T) {
+	testCases := map[string]struct {
+		query     string
+		input     any
+		expectErr error
+	}{
+		"nil input": {
+			query:     "$",
+			input:     nil,
+			expectErr: runtime.ErrIncompatibleTypes,
+		},
+		"unsupported type": {
+			query:     "$",
+			input:     func() {},
+			expectErr: runtime.ErrIncompatibleTypes,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, tc.input)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectErr, "Error type mismatch")
+		})
+	}
+}
+
 func Test_Eval_String(t *testing.T) {
 	testCases := map[string]struct {
 		query    string

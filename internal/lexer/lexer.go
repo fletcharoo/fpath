@@ -13,6 +13,7 @@ const (
 	TokenType_Label
 	TokenType_StringLiteral
 	TokenType_Boolean
+	TokenType_Dollar
 	TokenType_Plus
 	TokenType_Minus
 	TokenType_Asterisk
@@ -42,6 +43,7 @@ var (
 		TokenType_Label:              "Label",
 		TokenType_StringLiteral:      "StringLiteral",
 		TokenType_Boolean:            "Boolean",
+		TokenType_Dollar:             "Dollar",
 		TokenType_Plus:               "Plus",
 		TokenType_Minus:              "Minus",
 		TokenType_Asterisk:           "Asterisk",
@@ -170,6 +172,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 		case '"':
 			l.index++
 			return l.getTokenStringLiteral()
+		case '$':
+			l.index++
+			return Token{
+				Type: TokenType_Dollar,
+			}, nil
 		case '+':
 			l.index++
 			return Token{

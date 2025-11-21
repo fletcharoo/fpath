@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fletcharoo/fpath/internal/parser"
+	"github.com/shopspring/decimal"
 )
 
 var (
@@ -27,6 +28,7 @@ func init() {
 		parser.ExprType_Block:              evalBlock,
 		parser.ExprType_Number:             evalLiteral,
 		parser.ExprType_String:             evalString,
+		parser.ExprType_Input:              evalInput,
 		parser.ExprType_Boolean:            evalLiteral,
 		parser.ExprType_Add:                evalAdd,
 		parser.ExprType_Subtract:           evalSubtract,
@@ -72,6 +74,11 @@ func evalLiteral(expr parser.Expr, _ any) (ret parser.Expr, err error) {
 // evalString returns the string expression passed into it.
 func evalString(expr parser.Expr, _ any) (ret parser.Expr, err error) {
 	return expr, nil
+}
+
+// evalInput converts input data to appropriate expression types.
+func evalInput(_ parser.Expr, input any) (ret parser.Expr, err error) {
+	return convertInputToExpr(input)
 }
 
 // evalLiteral evaluates the contained expression.
@@ -1420,4 +1427,116 @@ func areExpressionsEqual(expr1, expr2 parser.Expr) (bool, error) {
 
 	// For other cross-type comparisons, they don't match
 	return false, nil
+}
+
+// convertInputToExpr converts input data to appropriate expression types.
+func convertInputToExpr(input any) (parser.Expr, error) {
+	if input == nil {
+		return nil, fmt.Errorf("%w: input data cannot be nil", ErrIncompatibleTypes)
+	}
+
+	switch v := input.(type) {
+	case string:
+		return parser.ExprString{Value: v}, nil
+	case int:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case int8:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case int16:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case int32:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case int64:
+		return parser.ExprNumber{Value: decimal.NewFromInt(v)}, nil
+	case uint:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case uint8:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case uint16:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case uint32:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case uint64:
+		return parser.ExprNumber{Value: decimal.NewFromInt(int64(v))}, nil
+	case float32:
+		return parser.ExprNumber{Value: decimal.NewFromFloat32(v)}, nil
+	case float64:
+		return parser.ExprNumber{Value: decimal.NewFromFloat(v)}, nil
+	case bool:
+		return parser.ExprBoolean{Value: v}, nil
+	case []any:
+		var values []parser.Expr
+		for _, item := range v {
+			expr, err := convertInputToExpr(item)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert list item: %w", err)
+			}
+			values = append(values, expr)
+		}
+		return parser.ExprList{Values: values}, nil
+	case []string:
+		var values []parser.Expr
+		for _, item := range v {
+			values = append(values, parser.ExprString{Value: item})
+		}
+		return parser.ExprList{Values: values}, nil
+	case []int:
+		var values []parser.Expr
+		for _, item := range v {
+			values = append(values, parser.ExprNumber{Value: decimal.NewFromInt(int64(item))})
+		}
+		return parser.ExprList{Values: values}, nil
+	case []int64:
+		var values []parser.Expr
+		for _, item := range v {
+			values = append(values, parser.ExprNumber{Value: decimal.NewFromInt(item)})
+		}
+		return parser.ExprList{Values: values}, nil
+	case []float64:
+		var values []parser.Expr
+		for _, item := range v {
+			values = append(values, parser.ExprNumber{Value: decimal.NewFromFloat(item)})
+		}
+		return parser.ExprList{Values: values}, nil
+	case map[string]any:
+		var pairs []parser.ExprMapPair
+		for key, value := range v {
+			valueExpr, err := convertInputToExpr(value)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert map value for key %q: %w", key, err)
+			}
+			pairs = append(pairs, parser.ExprMapPair{
+				Key:   parser.ExprString{Value: key},
+				Value: valueExpr,
+			})
+		}
+		return parser.ExprMap{Pairs: pairs}, nil
+	case map[any]any:
+		var pairs []parser.ExprMapPair
+		for key, value := range v {
+			// Convert key to string
+			var keyExpr parser.Expr
+			switch k := key.(type) {
+			case string:
+				keyExpr = parser.ExprString{Value: k}
+			case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+				keyStr := fmt.Sprintf("%v", k)
+				keyExpr = parser.ExprString{Value: keyStr}
+			default:
+				return nil, fmt.Errorf("unsupported map key type: %T", key)
+			}
+
+			valueExpr, err := convertInputToExpr(value)
+			if err != nil {
+				return nil, fmt.Errorf("failed to convert map value for key %v: %w", key, err)
+			}
+			pairs = append(pairs, parser.ExprMapPair{
+				Key:   keyExpr,
+				Value: valueExpr,
+			})
+		}
+		return parser.ExprMap{Pairs: pairs}, nil
+	default:
+		return nil, fmt.Errorf("%w: unsupported input type: %T", ErrIncompatibleTypes, input)
+	}
 }

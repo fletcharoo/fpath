@@ -96,6 +96,21 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"Input": {
+			input: "$",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Input {
+					t.Fatalf("Expected Input type, got %d", expr.Type())
+				}
+				_, ok := expr.(ExprInput)
+				if !ok {
+					t.Fatalf("Expected ExprInput, got %T", expr)
+				}
+			},
+		},
 		"Block": {
 			input: "(123)",
 			validate: func(expr Expr, err error) {
