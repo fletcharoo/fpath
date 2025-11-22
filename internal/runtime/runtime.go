@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fletcharoo/fpath/internal/parser"
 	"github.com/shopspring/decimal"
@@ -61,8 +62,9 @@ func init() {
 	}
 
 	functionRegistry = map[string]functionFunc{
-		"len":    evalLenFunction,
-		"filter": evalFilterFunction,
+		"len":      evalLenFunction,
+		"filter":   evalFilterFunction,
+		"contains": evalContainsFunction,
 	}
 }
 
@@ -2057,6 +2059,110 @@ func evalLenFunction(args []parser.Expr, input any) (ret parser.Expr, err error)
 		err = fmt.Errorf("%w: len() cannot be applied to type %s", ErrInvalidArgumentType, argExpr.String())
 		return
 	}
+}
+
+// evalContainsFunction implements the contains() built-in function.
+// Checks if a value exists within a list, string, or map.
+func evalContainsFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 2 {
+		err = fmt.Errorf("%w: contains() expects exactly 2 arguments, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate the first argument (the container)
+	containerArg, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate contains() container argument: %w", err)
+		return
+	}
+
+	// Evaluate the second argument (the search value)
+	searchArg, err := Eval(args[1], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate contains() search argument: %w", err)
+		return
+	}
+
+	switch containerArg.Type() {
+	case parser.ExprType_String:
+		containerStr, ok := containerArg.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert string container as string")
+			return
+		}
+
+		// For string containment, check if search value as string exists within container string
+		searchStr, err := searchArg.Decode()
+		if err != nil {
+			err = fmt.Errorf("failed to decode search value for string containment: %w", err)
+			return nil, err
+		}
+
+		searchStrStr, ok := searchStr.(string)
+		if !ok {
+			// If it's not a string, convert it to string representation
+			searchStrStr = fmt.Sprintf("%v", searchStr)
+		}
+
+		return parser.ExprBoolean{Value: containsString(containerStr.Value, searchStrStr)}, nil
+
+	case parser.ExprType_List:
+		containerList, ok := containerArg.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert list container as list")
+			return
+		}
+
+		// For list containment, iterate through list elements and check for equality
+		for _, element := range containerList.Values {
+			isEqual, compareErr := areExpressionsEqual(element, searchArg)
+			if compareErr != nil {
+				continue // Skip this element if comparison fails
+			}
+			if isEqual {
+				return parser.ExprBoolean{Value: true}, nil
+			}
+		}
+		return parser.ExprBoolean{Value: false}, nil
+
+	case parser.ExprType_Map:
+		containerMap, ok := containerArg.(parser.ExprMap)
+		if !ok {
+			err = fmt.Errorf("failed to assert map container as map")
+			return
+		}
+
+		// For map containment, iterate through keys and check for equality with search value
+		for _, pair := range containerMap.Pairs {
+			isEqual, compareErr := areExpressionsEqual(pair.Key, searchArg)
+			if compareErr != nil {
+				continue // Skip this key if comparison fails
+			}
+			if isEqual {
+				return parser.ExprBoolean{Value: true}, nil
+			}
+		}
+		return parser.ExprBoolean{Value: false}, nil
+
+	case parser.ExprType_Number:
+		// For numbers, return error as per ticket specification
+		err = fmt.Errorf("%w: contains() cannot be applied to numbers", ErrInvalidArgumentType)
+		return
+
+	case parser.ExprType_Boolean:
+		// For booleans, return error as per ticket specification
+		err = fmt.Errorf("%w: contains() cannot be applied to booleans", ErrInvalidArgumentType)
+		return
+
+	default:
+		err = fmt.Errorf("%w: contains() cannot be applied to type %s", ErrInvalidArgumentType, containerArg.String())
+		return
+	}
+}
+
+// containsString checks if a substring exists within a string.
+func containsString(s, substr string) bool {
+	return strings.Contains(s, substr)
 }
 
 // evalFilterFunction implements the filter() built-in function.

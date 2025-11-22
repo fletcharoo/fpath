@@ -3110,6 +3110,106 @@ func Test_Eval_Function(t *testing.T) {
 	}
 }
 
+func Test_Eval_ContainsFunction(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"contains with list - positive match": {
+			query:    `contains([1, 2, 3], 2)`,
+			expected: true,
+		},
+		"contains with list - negative match": {
+			query:    `contains([1, 2, 3], 4)`,
+			expected: false,
+		},
+		"contains with empty list": {
+			query:    `contains([], 1)`,
+			expected: false,
+		},
+		"contains with string - positive match": {
+			query:    `contains("hello world", "world")`,
+			expected: true,
+		},
+		"contains with string - negative match": {
+			query:    `contains("hello world", "xyz")`,
+			expected: false,
+		},
+		"contains with empty string": {
+			query:    `contains("", "test")`,
+			expected: false,
+		},
+		"contains with string - substring match": {
+			query:    `contains("hello", "ell")`,
+			expected: true,
+		},
+		"contains with map - positive match": {
+			query:    `contains({"a": 1, "b": 2}, "a")`,
+			expected: true,
+		},
+		"contains with map - negative match": {
+			query:    `contains({"a": 1, "b": 2}, "c")`,
+			expected: false,
+		},
+		"contains with empty map": {
+			query:    `contains({}, "key")`,
+			expected: false,
+		},
+		"contains with string and number": {
+			query:    `contains("test123", 123)`,
+			expected: true,
+		},
+		"contains with list of mixed types": {
+			query:    `contains([1, "hello", true], "hello")`,
+			expected: true,
+		},
+		"contains with boolean in list": {
+			query:    `contains([1, "hello", true], true)`,
+			expected: true,
+		},
+		"contains with number in list": {
+			query:    `contains([1, 2, 3.5, 4], 3.5)`,
+			expected: true,
+		},
+		"contains with map with numeric key": {
+			query:    `contains({"1": "a", "2": "b"}, "1")`,
+			expected: true,
+		},
+		"contains with input data": {
+			query:    `contains($, "test")`,
+			input:    []any{"hello", "test", "world"},
+			expected: true,
+		},
+		"contains with input string": {
+			query:    `contains($, "lo wo")`,
+			input:    "hello world",
+			expected: true,
+		},
+		"contains with input map": {
+			query:    `contains($, "key1")`,
+			input:    map[string]any{"key1": "value1", "key2": "value2"},
+			expected: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
 func Test_Eval_Function_Errors(t *testing.T) {
 	testCases := map[string]struct {
 		query         string
@@ -3144,6 +3244,31 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		"len with input boolean": {
 			query:         `len($)`,
 			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"contains with too many arguments": {
+			query:         `contains([1, 2, 3], 2, "extra")`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"contains with too few arguments": {
+			query:         `contains([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"contains with no arguments": {
+			query:         `contains()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"contains with number as first argument": {
+			query:         `contains(123, 2)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"contains with boolean as first argument": {
+			query:         `contains(true, "test")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"contains with input number as first argument": {
+			query:         `contains($, "test")`,
+			input:         42,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 	}
