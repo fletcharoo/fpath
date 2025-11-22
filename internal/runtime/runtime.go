@@ -3,7 +3,6 @@ package runtime
 import (
 	"errors"
 	"fmt"
-	"math"
 
 	"github.com/fletcharoo/fpath/internal/parser"
 	"github.com/shopspring/decimal"
@@ -61,7 +60,7 @@ func init() {
 	}
 
 	functionRegistry = map[string]functionFunc{
-		"len": evalLenFunction,
+		"len":    evalLenFunction,
 		"filter": evalFilterFunction,
 	}
 }
@@ -658,28 +657,13 @@ func evalExponentNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error
 		return
 	}
 
-	// For decimal exponentiation, we'll use the decimal library's power function
-	// First, convert decimals to float64 to use math.Pow, then back to decimal
-	baseFloat, ok := expr1Number.Value.Float64()
-	if !ok {
-		err = fmt.Errorf("failed to convert base to float64")
-		return
+	resultNumber := expr1Number.Value.Pow(expr2Number.Value)
+
+	result = parser.ExprNumber{
+		Value: resultNumber,
 	}
 
-	expFloat, ok := expr2Number.Value.Float64()
-	if !ok {
-		err = fmt.Errorf("failed to convert exponent to float64")
-		return
-	}
-
-	// Use math.Pow for the calculation
-	resultFloat := math.Pow(baseFloat, expFloat)
-
-	resultNumber := parser.ExprNumber{
-		Value: decimal.NewFromFloat(resultFloat),
-	}
-
-	return resultNumber, nil
+	return result, nil
 }
 
 // evalEquals accepts a parser.ExprEquals expression and performs the equality comparison.
