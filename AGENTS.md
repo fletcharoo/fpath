@@ -1,6 +1,9 @@
 ## Project Overview
 `fpath` is a micro evaluation language library for the Go programming language. It compiles a small evaluation script which can be reused by providing input data, which it will then return the final evaluation.
 
+### Operator Precedence
+fpath deliberately implements no operator precedence, evaluating all arithmetic expressions strictly left to right. This design choice simplifies the language and ensures predictable evaluation order, so `2 + 3 * 4` evaluates to `20` rather than the mathematical result of `14`. When implementing or parsing expressions, always process operators in the order they appear without applying traditional precedence rules.
+
 ## Common Developer Commands
 - `make test`: Run all tests
 - `make testupdate`: Run all tests and update snapshots
