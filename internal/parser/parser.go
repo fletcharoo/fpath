@@ -59,6 +59,7 @@ type Parser struct {
 }
 
 // Parse parses the next expression in the query.
+// This now handles primary expressions and then calls wrapOperation to handle binary operations.
 func (p *Parser) Parse() (expr Expr, err error) {
 	tok, err := p.lexer.GetToken()
 	if err != nil {
@@ -139,42 +140,201 @@ func (p *Parser) wrapOperation(expr Expr) (op Expr, err error) {
 	// This skips the peeked token.
 	p.lexer.GetToken()
 
-	expr2, err := p.Parse()
-	if err != nil {
-		err = fmt.Errorf("failed to parse the second expression: %w", err)
-	}
+	// For the specific requirement of left-associative arithmetic operations without precedence,
+	// we need to distinguish between arithmetic operators and other operators.
+	// Arithmetic operators (+, -, *, /) should all have the same precedence and be left-associative.
+	// Other operators (==, !=, <, >, <=, >=, &&, ||) should maintain relative precedence.
 
-	// Check if the second expression is a ternary and there's no more tokens
-	// This handles cases like "5 > 3 ? "greater" : "less" where ternary
-	// should have lower precedence than the binary operation
-	if expr2.Type() == ExprType_Ternary {
-		// Check if there are any more tokens after the ternary
-		nextTok, peekErr := p.lexer.PeekToken()
-		if peekErr != nil || (peekErr == nil && nextTok.Type == lexer.TokenType_Undefined) {
-			// No more tokens, so this should be parsed as a ternary
-			// with the binary operation as the condition
-			ternaryExpr := expr2.(ExprTernary)
-			binaryOp := f(expr, ternaryExpr.Condition)
-			return ExprTernary{
-				Condition: binaryOp,
-				TrueExpr:  ternaryExpr.TrueExpr,
-				FalseExpr: ternaryExpr.FalseExpr,
-			}, nil
+	// Check if the current operator is an arithmetic operator
+	isArithmeticOp := isArithmeticOperator(tok.Type)
+
+	if isArithmeticOp {
+		// Parse all arithmetic operations in a left-associative way
+		return p.parseArithmeticLeftAssociative(expr, f)
+	} else {
+		// For non-arithmetic operators, use the original logic
+		// but we still need to be careful about precedence
+		expr2, err := p.Parse()
+		if err != nil {
+			err = fmt.Errorf("failed to parse the second expression: %w", err)
 		}
-	}
 
-	result, err := p.wrapOperation(f(expr, expr2))
+		// Check if the second expression is a ternary and there's no more tokens
+		// This handles cases like "5 > 3 ? "greater" : "less" where ternary
+		// should have lower precedence than the binary operation
+		if expr2.Type() == ExprType_Ternary {
+			// Check if there are any more tokens after the ternary
+			nextTok, peekErr := p.lexer.PeekToken()
+			if peekErr != nil || (peekErr == nil && nextTok.Type == lexer.TokenType_Undefined) {
+				// No more tokens, so this should be parsed as a ternary
+				// with the binary operation as the condition
+				ternaryExpr := expr2.(ExprTernary)
+				binaryOp := f(expr, ternaryExpr.Condition)
+				return ExprTernary{
+					Condition: binaryOp,
+					TrueExpr:  ternaryExpr.TrueExpr,
+					FalseExpr: ternaryExpr.FalseExpr,
+				}, nil
+			}
+		}
+
+		result, err := p.wrapOperation(f(expr, expr2))
+		if err != nil {
+			return nil, err
+		}
+
+		// Check for ternary operator after complete expression (lowest precedence)
+		nextTok, err := p.lexer.PeekToken()
+		if err == nil && nextTok.Type == lexer.TokenType_Question {
+			return p.parseTernary(result)
+		}
+
+		return result, nil
+	}
+}
+
+// isArithmeticOperator checks if the token type is an arithmetic operator
+func isArithmeticOperator(tokenType int) bool {
+	return tokenType == lexer.TokenType_Plus ||
+		   tokenType == lexer.TokenType_Minus ||
+		   tokenType == lexer.TokenType_Asterisk ||
+		   tokenType == lexer.TokenType_Slash
+}
+
+// parseArithmeticLeftAssociative handles arithmetic operations with equal precedence
+// and left-associative evaluation
+func (p *Parser) parseArithmeticLeftAssociative(left Expr, leftOp operatorFunc) (Expr, error) {
+	// Start with the current left expression and operator
+	result := leftOp(left, left) // We'll replace the second 'left' with the actual right operand
+
+	// For left-associative arithmetic, we'll build the expression iteratively
+	// Process the right operand of the first operation
+	right, err := p.parseArithmeticOperand()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse arithmetic operand: %w", err)
 	}
 
-	// Check for ternary operator after complete expression (lowest precedence)
-	nextTok, err := p.lexer.PeekToken()
-	if err == nil && nextTok.Type == lexer.TokenType_Question {
-		return p.parseTernary(result)
+	// Apply the first operation
+	result = leftOp(left, right)
+
+	// Continue looking for more arithmetic operators at the same precedence level
+	for {
+		nextTok, err := p.lexer.PeekToken()
+		if errors.Is(io.EOF, err) {
+			return result, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to peek token: %w", err)
+		}
+
+		// If it's not an arithmetic operator, we're done
+		if !isArithmeticOperator(nextTok.Type) {
+			break
+		}
+
+		// Get the next arithmetic operator
+		nextOp := operatorMap[nextTok.Type]
+		p.lexer.GetToken() // consume the operator
+
+		// Get the right operand
+		nextRight, err := p.parseArithmeticOperand()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse next arithmetic operand: %w", err)
+		}
+
+		// Apply the operator left-associatively: (result op nextRight)
+		result = nextOp(result, nextRight)
 	}
 
-	return result, nil
+	// After processing all arithmetic operations at this level,
+	// continue with the normal precedence handling
+	return p.wrapOperation(result)
+}
+
+// parseArithmeticOperand parses a single operand for arithmetic operations
+// This should parse the operand without allowing arithmetic operations at the same level
+func (p *Parser) parseArithmeticOperand() (Expr, error) {
+	// Parse the next primary expression (number, string, parenthesized, etc.)
+	tok, err := p.lexer.GetToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get token for arithmetic operand: %w", err)
+	}
+
+	f, ok := parseMap[tok.Type]
+	if !ok {
+		return nil, fmt.Errorf("unrecognizable token for arithmetic operand: %s (type: %d)", tok, tok.Type)
+	}
+
+	expr, err := f(p, tok)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse arithmetic operand: %w", err)
+	}
+
+	// After parsing the primary, we need to handle higher precedence operations
+	// like indexing, but NOT arithmetic operations
+	// So we'll call wrapOperation but in a way that only processes non-arithmetic operations
+	return p.wrapOperationNonArithmetic(expr)
+}
+
+// wrapOperationNonArithmetic handles operations that have higher precedence than arithmetic
+// like indexing and ternary (but not arithmetic operations)
+func (p *Parser) wrapOperationNonArithmetic(expr Expr) (Expr, error) {
+	for {
+		tok, err := p.lexer.PeekToken()
+		if errors.Is(io.EOF, err) {
+			return expr, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to peek token: %w", err)
+		}
+
+		// Skip arithmetic operators - we'll return to be processed at the arithmetic level
+		if isArithmeticOperator(tok.Type) {
+			return expr, nil
+		}
+
+		// Handle ternary operator (lowest precedence among those we handle here)
+		if tok.Type == lexer.TokenType_Question {
+			return p.parseTernary(expr)
+		}
+
+		// Handle indexing (higher precedence than binary ops)
+		if tok.Type == lexer.TokenType_LeftBracket {
+			// Consume left bracket
+			p.lexer.GetToken()
+
+			// Peek at the index expression
+			nextTok, err := p.lexer.PeekToken()
+			if err != nil {
+				return nil, fmt.Errorf("failed to peek token: %w", err)
+			}
+
+			var indexedExpr Expr
+			var indexErr error
+			if expr.Type() == ExprType_Map || expr.Type() == ExprType_MapIndex || nextTok.Type == lexer.TokenType_StringLiteral {
+				indexedExpr, indexErr = p.parseMapIndex(expr)
+			} else if expr.Type() == ExprType_Input {
+				if nextTok.Type == lexer.TokenType_StringLiteral {
+					indexedExpr, indexErr = p.parseMapIndex(expr)
+				} else {
+					indexedExpr, indexErr = p.parseListIndex(expr)
+				}
+			} else {
+				indexedExpr, indexErr = p.parseListIndex(expr)
+			}
+
+			if indexErr != nil {
+				return nil, indexErr
+			}
+
+			// Continue to check for more non-arithmetic operations
+			expr = indexedExpr
+			continue
+		}
+
+		// If it's not an arithmetic operator or higher precedence operation, return
+		return expr, nil
+	}
 }
 
 // parseUndefined parses an undefined token.

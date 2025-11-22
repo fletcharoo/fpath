@@ -51,7 +51,7 @@ func Test_Eval(t *testing.T) {
 		},
 		"subtract with multiplication": {
 			query:    "10 - 2 * 3",
-			expected: 4.0,
+			expected: 24.0,  // Left-associative: (10 - 2) * 3 = 8 * 3 = 24
 		},
 		"subtract negative result": {
 			query:    "2 - 5",
