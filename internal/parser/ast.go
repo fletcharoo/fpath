@@ -18,6 +18,7 @@ const (
 	ExprType_Subtract
 	ExprType_Multiply
 	ExprType_Divide
+	ExprType_Modulo
 	ExprType_Equals
 	ExprType_NotEquals
 	ExprType_GreaterThan
@@ -58,6 +59,7 @@ func (ExprAdd) Type() int                { return ExprType_Add }
 func (ExprSubtract) Type() int           { return ExprType_Subtract }
 func (ExprMultiply) Type() int           { return ExprType_Multiply }
 func (ExprDivide) Type() int             { return ExprType_Divide }
+func (ExprModulo) Type() int             { return ExprType_Modulo }
 func (ExprEquals) Type() int             { return ExprType_Equals }
 func (ExprNotEquals) Type() int          { return ExprType_NotEquals }
 func (ExprGreaterThan) Type() int        { return ExprType_GreaterThan }
@@ -84,6 +86,7 @@ func (ExprAdd) String() string                { return "Add" }
 func (ExprSubtract) String() string           { return "Subtract" }
 func (ExprMultiply) String() string           { return "Multiply" }
 func (ExprDivide) String() string             { return "Divide" }
+func (ExprModulo) String() string             { return "Modulo" }
 func (ExprEquals) String() string             { return "Equals" }
 func (ExprNotEquals) String() string          { return "NotEquals" }
 func (ExprGreaterThan) String() string        { return "GreaterThan" }
@@ -184,6 +187,17 @@ type ExprDivide struct {
 }
 
 func (e ExprDivide) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprModulo represents an operation that computes the modulo of two expressions.
+type ExprModulo struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprModulo) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

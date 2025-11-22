@@ -213,6 +213,27 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"Modulo operation": {
+			input: "123%456",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_Modulo {
+					t.Fatalf("Expected Modulo type, got %d", expr.Type())
+				}
+				mod, ok := expr.(ExprModulo)
+				if !ok {
+					t.Fatalf("Expected ExprModulo, got %T", expr)
+				}
+				if mod.Expr1.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as first operand, got %d", mod.Expr1.Type())
+				}
+				if mod.Expr2.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as second operand, got %d", mod.Expr2.Type())
+				}
+			},
+		},
 		"Equals operation": {
 			input: "123==456",
 			validate: func(expr Expr, err error) {

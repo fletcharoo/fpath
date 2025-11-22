@@ -26,6 +26,7 @@ const (
 	TokenType_LessThanOrEqual
 	TokenType_And
 	TokenType_Or
+	TokenType_Modulo
 	TokenType_Question
 	TokenType_LeftParan
 	TokenType_RightParan
@@ -57,6 +58,7 @@ var (
 		TokenType_LessThanOrEqual:    "LessThanOrEqual",
 		TokenType_And:                "And",
 		TokenType_Or:                 "Or",
+		TokenType_Modulo:             "Modulo",
 		TokenType_Question:           "Question",
 		TokenType_LeftParan:          "LeftParan",
 		TokenType_RightParan:         "RightParan",
@@ -198,6 +200,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_Slash,
+			}, nil
+		case '%':
+			l.index++
+			return Token{
+				Type: TokenType_Modulo,
 			}, nil
 		case '=':
 			l.index++

@@ -98,6 +98,50 @@ func Test_Eval(t *testing.T) {
 			query:    "8 / 8",
 			expected: 1.0,
 		},
+		"modulo": {
+			query:    "10 % 3",
+			expected: 1.0,
+		},
+		"modulo decimal result": {
+			query:    "10.5 % 3",
+			expected: 1.5,
+		},
+		"modulo with addition": {
+			query:    "(10 + 5) % 4",
+			expected: 3.0,
+		},
+		"modulo with multiplication": {
+			query:    "20 % (3 * 2)",
+			expected: 2.0,
+		},
+		"modulo with division": {
+			query:    "17 % (10 / 2)",
+			expected: 2.0,
+		},
+		"modulo complex expression": {
+			query:    "(10 + 5) % (2 * 3)",
+			expected: 3.0,
+		},
+		"modulo left-associative": {
+			query:    "100 % 17 % 7",
+			expected: 1.0,  // (100 % 17) % 7 = 15 % 7 = 1
+		},
+		"modulo by one": {
+			query:    "7 % 1",
+			expected: 0.0,
+		},
+		"modulo same numbers": {
+			query:    "8 % 8",
+			expected: 0.0,
+		},
+		"modulo zero": {
+			query:    "0 % 7",
+			expected: 0.0,
+		},
+		"modulo larger divisor": {
+			query:    "3 % 7",
+			expected: 3.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -620,6 +664,71 @@ func Test_Eval_DivideByZero(t *testing.T) {
 			_, err = runtime.Eval(expr, nil)
 			require.Error(t, err, "Expected runtime error for division by zero")
 			require.ErrorIs(t, err, runtime.ErrDivisionByZero, "Error should be ErrDivisionByZero")
+		})
+	}
+}
+
+func Test_Eval_ModuloByZero(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"modulo by zero": {
+			query: "10 % 0",
+		},
+		"modulo by zero in complex expression": {
+			query: "(10 + 5) % (5 - 5)",
+		},
+		"modulo by zero with multiplication": {
+			query: "10 % (2 * 0)",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for modulo by zero")
+			require.ErrorIs(t, err, runtime.ErrDivisionByZero, "Error should be ErrDivisionByZero")
+		})
+	}
+}
+
+func Test_Eval_Modulo_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"number % string": {
+			query: `5 % "hello"`,
+		},
+		"string % number": {
+			query: `"hello" % 5`,
+		},
+		"number % boolean": {
+			query: `5 % true`,
+		},
+		"boolean % number": {
+			query: `true % 5`,
+		},
+		"string % boolean": {
+			query: `"hello" % true`,
+		},
+		"boolean % string": {
+			query: `true % "hello"`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
 		})
 	}
 }

@@ -264,6 +264,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Question},
 			},
 		},
+		"Modulo": {
+			input: "%",
+			expectedTokens: []Token{
+				{Type: TokenType_Modulo},
+			},
+		},
 	}
 
 	for name, tc := range testCases {

@@ -40,6 +40,7 @@ func init() {
 		parser.ExprType_Subtract:           evalSubtract,
 		parser.ExprType_Multiply:           evalMultiply,
 		parser.ExprType_Divide:             evalDivide,
+		parser.ExprType_Modulo:             evalModulo,
 		parser.ExprType_Equals:             evalEquals,
 		parser.ExprType_NotEquals:          evalNotEquals,
 		parser.ExprType_GreaterThan:        evalGreaterThan,
@@ -402,6 +403,89 @@ func evalDivideNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) 
 
 	resultNumber := parser.ExprNumber{
 		Value: expr1Number.Value.Div(expr2Number.Value),
+	}
+
+	return resultNumber, nil
+}
+
+// evalModulo accepts a parser.ExprModulo expression and performs the operation.
+func evalModulo(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprModulo, ok := expr.(parser.ExprModulo)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as modulo")
+		return
+	}
+
+	// Handle left-associativity for chained modulo operations
+	// If the second expression is also a modulo, we need to evaluate left-to-right
+	if nestedModulo, isNested := exprModulo.Expr2.(parser.ExprModulo); isNested {
+		// Evaluate (a % (b % c)) as ((a % b) % c)
+		// First evaluate a % b
+		leftResult, err := evalModulo(parser.ExprModulo{
+			Expr1: exprModulo.Expr1,
+			Expr2: nestedModulo.Expr1,
+		}, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate left part of chained modulo: %w", err)
+		}
+
+		// Then evaluate (a % b) % c
+		return evalModulo(parser.ExprModulo{
+			Expr1: leftResult,
+			Expr2: nestedModulo.Expr2,
+		}, input)
+	}
+
+	expr1, err := Eval(exprModulo.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprModulo.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalModuloNumber(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid modulo type: %s", expr1)
+		return
+	}
+}
+
+// evalModuloNumber accepts two parser.ExprNumber expressions and performs the modulo operation.
+func evalModuloNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	// Check for division by zero (modulo by zero)
+	if expr2Number.Value.IsZero() {
+		err = ErrDivisionByZero
+		return
+	}
+
+	resultNumber := parser.ExprNumber{
+		Value: expr1Number.Value.Mod(expr2Number.Value),
 	}
 
 	return resultNumber, nil
