@@ -142,6 +142,70 @@ func Test_Eval(t *testing.T) {
 			query:    "3 % 7",
 			expected: 3.0,
 		},
+		"exponent": {
+			query:    "2 ^ 3",
+			expected: 8.0,
+		},
+		"exponent left-associative": {
+			query:    "2 ^ 3 ^ 2", // (2 ^ 3) ^ 2 = 8 ^ 2 = 64
+			expected: 64.0,
+		},
+		"exponent with decimal base": {
+			query:    "2.5 ^ 2",
+			expected: 6.25,
+		},
+		"exponent with decimal exponent": {
+			query:    "4 ^ 1.5",
+			expected: 8.0, // 4^1.5 = 4^(3/2) = sqrt(4^3) = sqrt(64) = 8
+		},
+		"exponent with decimal base and exponent": {
+			query:    "2.0 ^ 3.0",
+			expected: 8.0,
+		},
+		"exponent of zero": {
+			query:    "5 ^ 0",
+			expected: 1.0,
+		},
+		"zero exponent": {
+			query:    "0 ^ 5",
+			expected: 0.0,
+		},
+		"exponent one": {
+			query:    "7 ^ 1",
+			expected: 7.0,
+		},
+		"one exponent": {
+			query:    "1 ^ 100",
+			expected: 1.0,
+		},
+		"negative base with even exponent": {
+			query:    "(-2) ^ 2",
+			expected: 4.0,
+		},
+		"negative base with odd exponent": {
+			query:    "(-2) ^ 3",
+			expected: -8.0,
+		},
+		"exponent with addition": {
+			query:    "(2 + 3) ^ 2",
+			expected: 25.0,
+		},
+		"exponent with complex expression": {
+			query:    "2 ^ (3 * 2)",
+			expected: 64.0, // 2^6 = 64
+		},
+		"exponent with multiplication in chain": {
+			query:    "2 ^ 3 * 2",  // Left-associative: (2 ^ 3) * 2 = 8 * 2 = 16
+			expected: 16.0,
+		},
+		"exponent with division in chain": {
+			query:    "2 ^ 4 / 2",  // Left-associative: (2 ^ 4) / 2 = 16 / 2 = 8
+			expected: 8.0,
+		},
+		"exponent with subtraction in chain": {
+			query:    "3 ^ 2 - 1",  // Left-associative: (3 ^ 2) - 1 = 9 - 1 = 8
+			expected: 8.0,
+		},
 	}
 
 	for name, tc := range testCases {

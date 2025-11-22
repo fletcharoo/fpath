@@ -270,6 +270,12 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Modulo},
 			},
 		},
+		"Caret": {
+			input: "^",
+			expectedTokens: []Token{
+				{Type: TokenType_Caret},
+			},
+		},
 	}
 
 	for name, tc := range testCases {

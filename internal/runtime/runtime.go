@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/fletcharoo/fpath/internal/parser"
 	"github.com/shopspring/decimal"
@@ -41,6 +42,7 @@ func init() {
 		parser.ExprType_Multiply:           evalMultiply,
 		parser.ExprType_Divide:             evalDivide,
 		parser.ExprType_Modulo:             evalModulo,
+		parser.ExprType_Exponent:           evalExponent,
 		parser.ExprType_Equals:             evalEquals,
 		parser.ExprType_NotEquals:          evalNotEquals,
 		parser.ExprType_GreaterThan:        evalGreaterThan,
@@ -486,6 +488,101 @@ func evalModuloNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) 
 
 	resultNumber := parser.ExprNumber{
 		Value: expr1Number.Value.Mod(expr2Number.Value),
+	}
+
+	return resultNumber, nil
+}
+
+// evalExponent accepts a parser.ExprExponent expression and performs the operation.
+func evalExponent(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprExponent, ok := expr.(parser.ExprExponent)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as exponent")
+		return
+	}
+
+	// Handle left-associativity for chained exponentiation
+	// If the second expression is also an exponent, we need to evaluate left-to-right
+	if nestedExponent, isNested := exprExponent.Expr2.(parser.ExprExponent); isNested {
+		// Evaluate (a ^ (b ^ c)) as ((a ^ b) ^ c)
+		// First evaluate a ^ b
+		leftResult, err := evalExponent(parser.ExprExponent{
+			Expr1: exprExponent.Expr1,
+			Expr2: nestedExponent.Expr1,
+		}, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate left part of chained exponentiation: %w", err)
+		}
+
+		// Then evaluate (a ^ b) ^ c
+		return evalExponent(parser.ExprExponent{
+			Expr1: leftResult,
+			Expr2: nestedExponent.Expr2,
+		}, input)
+	}
+
+	expr1, err := Eval(exprExponent.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprExponent.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalExponentNumber(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid exponent type: %s", expr1)
+		return
+	}
+}
+
+// evalExponentNumber accepts two parser.ExprNumber expressions and raises
+// the first to the power of the second.
+func evalExponentNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	// For decimal exponentiation, we'll use the decimal library's power function
+	// First, convert decimals to float64 to use math.Pow, then back to decimal
+	baseFloat, ok := expr1Number.Value.Float64()
+	if !ok {
+		err = fmt.Errorf("failed to convert base to float64")
+		return
+	}
+
+	expFloat, ok := expr2Number.Value.Float64()
+	if !ok {
+		err = fmt.Errorf("failed to convert exponent to float64")
+		return
+	}
+
+	// Use math.Pow for the calculation
+	resultFloat := math.Pow(baseFloat, expFloat)
+
+	resultNumber := parser.ExprNumber{
+		Value: decimal.NewFromFloat(resultFloat),
 	}
 
 	return resultNumber, nil

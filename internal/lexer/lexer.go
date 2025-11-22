@@ -36,6 +36,7 @@ const (
 	TokenType_RightBrace
 	TokenType_Colon
 	TokenType_Comma
+	TokenType_Caret
 )
 
 var (
@@ -68,6 +69,7 @@ var (
 		TokenType_RightBrace:         "RightBrace",
 		TokenType_Colon:              "Colon",
 		TokenType_Comma:              "Comma",
+		TokenType_Caret:              "Caret",
 	}
 )
 
@@ -328,6 +330,11 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			l.index++
 			return Token{
 				Type: TokenType_Comma,
+			}, nil
+		case '^':
+			l.index++
+			return Token{
+				Type: TokenType_Caret,
 			}, nil
 		default:
 			err = fmt.Errorf("%w: %s", errInvalidRune, string(r))

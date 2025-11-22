@@ -37,6 +37,7 @@ func init() {
 		lexer.TokenType_Asterisk:           operatorMultiply,
 		lexer.TokenType_Slash:              operatorDivide,
 		lexer.TokenType_Modulo:             operatorModulo,
+		lexer.TokenType_Caret:              operatorExponent,
 		lexer.TokenType_Equals:             operatorEquals,
 		lexer.TokenType_NotEquals:          operatorNotEquals,
 		lexer.TokenType_GreaterThan:        operatorGreaterThan,
@@ -200,7 +201,8 @@ func isArithmeticOperator(tokenType int) bool {
 		   tokenType == lexer.TokenType_Minus ||
 		   tokenType == lexer.TokenType_Asterisk ||
 		   tokenType == lexer.TokenType_Slash ||
-		   tokenType == lexer.TokenType_Modulo
+		   tokenType == lexer.TokenType_Modulo ||
+		   tokenType == lexer.TokenType_Caret
 }
 
 // parseArithmeticLeftAssociative handles arithmetic operations with equal precedence
@@ -720,6 +722,15 @@ func operatorAnd(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorOr implements operatorFunc.
 func operatorOr(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprOr{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorExponent wraps two expressions in an exponent expression.
+// operatorExponent implements operatorFunc.
+func operatorExponent(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprExponent{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

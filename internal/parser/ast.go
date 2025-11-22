@@ -34,6 +34,7 @@ const (
 	ExprType_Map
 	ExprType_MapIndex
 	ExprType_Function
+	ExprType_Exponent
 )
 
 var (
@@ -76,6 +77,7 @@ func (ExprMap) Type() int                { return ExprType_Map }
 func (ExprVariable) Type() int           { return ExprType_Variable }
 func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 func (ExprFunction) Type() int           { return ExprType_Function }
+func (ExprExponent) Type() int           { return ExprType_Exponent }
 func (ExprVariable) String() string      { return "Variable" }
 
 func (ExprBlock) String() string              { return "Block" }
@@ -102,6 +104,7 @@ func (ExprListIndex) String() string          { return "ListIndex" }
 func (ExprMap) String() string                { return "Map" }
 func (ExprMapIndex) String() string           { return "MapIndex" }
 func (ExprFunction) String() string           { return "Function" }
+func (ExprExponent) String() string           { return "Exponent" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -364,6 +367,17 @@ func (e ExprMapIndex) Decode() (result any, err error) {
 type ExprFunction struct {
 	Name string
 	Args []Expr
+}
+
+// ExprExponent represents an operation that raises one expression to the power of another.
+type ExprExponent struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprExponent) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
 }
 
 // ExprVariable represents a variable identifier in the expression, such as `_`
