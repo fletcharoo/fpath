@@ -623,6 +623,14 @@ func (p *Parser) parseMapIndex(mapExpr Expr) (expr Expr, err error) {
 // parseLabelOrFunction parses a label token, checking if it's followed by a left parenthesis to determine if it's a function call.
 // parseLabelOrFunction implements parseFunc.
 func parseLabelOrFunction(p *Parser, tok lexer.Token) (expr Expr, err error) {
+	// Check if this is the special underscore variable
+	if tok.Value == "_" {
+		// This is the special underscore variable used in filter expressions
+		return ExprVariable{
+			Name: "_",
+		}, nil
+	}
+
 	// Peek at the next token to see if it's a left parenthesis
 	nextTok, peekErr := p.lexer.PeekToken()
 	if peekErr != nil && !errors.Is(peekErr, io.EOF) {

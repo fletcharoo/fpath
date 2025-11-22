@@ -34,6 +34,7 @@ func init() {
 		parser.ExprType_Number:             evalLiteral,
 		parser.ExprType_String:             evalString,
 		parser.ExprType_Input:              evalInput,
+		parser.ExprType_Variable:           evalVariable,
 		parser.ExprType_Boolean:            evalLiteral,
 		parser.ExprType_Add:                evalAdd,
 		parser.ExprType_Subtract:           evalSubtract,
@@ -57,6 +58,7 @@ func init() {
 
 	functionRegistry = map[string]functionFunc{
 		"len": evalLenFunction,
+		"filter": evalFilterFunction,
 	}
 }
 
@@ -1324,6 +1326,27 @@ func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	return list.Values[index], nil
 }
 
+// evalVariable evaluates a variable expression like `_` and returns its value from the input context.
+func evalVariable(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprVariable, ok := expr.(parser.ExprVariable)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as variable")
+		return
+	}
+
+	variableName := exprVariable.Name
+
+	// Handle the special underscore variable used in filter operations
+	if variableName == "_" {
+		// Convert the input to an expression to return as the value of the variable
+		return convertInputToExpr(input)
+	}
+
+	// For other variables (if any), return an error since they're not supported yet
+	err = fmt.Errorf("undefined variable: %s", variableName)
+	return
+}
+
 // evalMap evaluates a map expression by evaluating all its key-value pairs.
 func evalMap(expr parser.Expr, input any) (ret parser.Expr, err error) {
 	exprMap, ok := expr.(parser.ExprMap)
@@ -1558,6 +1581,111 @@ func evalLenFunction(args []parser.Expr, input any) (ret parser.Expr, err error)
 		err = fmt.Errorf("%w: len() cannot be applied to type %s", ErrInvalidArgumentType, argExpr.String())
 		return
 	}
+}
+
+// evalFilterFunction implements the filter() built-in function.
+// Filters a list based on a boolean expression using `_` as the element placeholder.
+func evalFilterFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 2 {
+		err = fmt.Errorf("%w: filter() expects exactly 2 arguments, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate the first argument (the list to filter)
+	listArg, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate filter() list argument: %w", err)
+		return
+	}
+
+	// Check that the first argument is a list
+	if listArg.Type() != parser.ExprType_List {
+		err = fmt.Errorf("%w: filter() first argument must be a list, got %s", ErrInvalidArgumentType, listArg.String())
+		return
+	}
+
+	exprList, ok := listArg.(parser.ExprList)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as list")
+		return
+	}
+
+	// The second argument is the filter expression with `_` as placeholder
+	filterExpr := args[1]
+
+	// Create a result list to store filtered elements
+	var filteredValues []parser.Expr
+
+	// Iterate through each element in the input list
+	for _, element := range exprList.Values {
+		// Create a custom evaluation context where `_` is treated as the current element
+		// We need to create a mechanism to substitute `_` during evaluation
+		// In this case, we'll need to have a special eval function that can handle `_` as an identifier
+		// For now, let me check if there's an identifier type
+
+		// For the purpose of this implementation, we'll need to create a custom evaluation
+		// where the underscore `_` is treated as a special variable containing the current element
+		// This could be done by creating a context or by implementing a custom eval that understands `_`
+
+		// For now, let me implement a simple approach by wrapping the element in a map
+		// where we could potentially use `$._` for the underscore, but that's not what the requirement says.
+		// The requirement is to replace `_` with the element value during evaluation.
+
+		// The cleanest approach would be to implement an expression visitor that can substitute `_` with the element
+		// However, for now, let's implement a simplified approach by creating a custom evaluation context
+		// based on the input data, where the underscore is treated specially.
+
+		// We can implement this by modifying Eval to recognize a special context where `_` is the current element
+		// For this, I need to first identify what `_` would be parsed as.
+		// Let me implement a basic version that passes the element as input and handles `_` specially.
+
+		// For this implementation, we need to understand how `_` should be parsed.
+		// Since `_` is typically an identifier, I'll need to create a custom evaluation context.
+
+		// The approach here is to evaluate the filter expression in a context where `_` refers to the current element
+		// Let me create a custom evaluation function that handles this case
+		result, evalErr := evalFilterExpression(filterExpr, element)
+		if evalErr != nil {
+			err = fmt.Errorf("failed to evaluate filter expression: %w", evalErr)
+			return nil, err
+		}
+
+		// Check that the result is a boolean
+		if result.Type() != parser.ExprType_Boolean {
+			err = fmt.Errorf("%w: filter expression must evaluate to a boolean, got %s", ErrInvalidArgumentType, result.String())
+			return
+		}
+
+		// Add element to result if condition is true
+		resultBool, ok := result.(parser.ExprBoolean)
+		if !ok {
+			err = fmt.Errorf("failed to assert result as boolean")
+			return
+		}
+
+		if resultBool.Value {
+			filteredValues = append(filteredValues, element)
+		}
+	}
+
+	// Return the filtered list
+	return parser.ExprList{Values: filteredValues}, nil
+}
+
+// evalFilterExpression evaluates the filter expression with the given element as the value for `_`.
+// This function evaluates the expression by using the element as the input context, so that
+// when the variable `_` is encountered during evaluation, it returns the element.
+func evalFilterExpression(expr parser.Expr, element parser.Expr) (parser.Expr, error) {
+	// Convert the element back to its original data type for use as input
+	elementData, err := element.Decode()
+	if err != nil {
+		// If we can't decode the element, use the element expression directly
+		elementData = element
+	}
+
+	// Evaluate the filter expression with the element as input context
+	// This allows the variable `_` to resolve to the current element during evaluation
+	return Eval(expr, elementData)
 }
 
 // convertInputToExpr converts input data to appropriate expression types.

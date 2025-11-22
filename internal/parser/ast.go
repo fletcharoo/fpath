@@ -13,6 +13,7 @@ const (
 	ExprType_Number
 	ExprType_String
 	ExprType_Input
+	ExprType_Variable // Added for variable support like `_`
 	ExprType_Add
 	ExprType_Subtract
 	ExprType_Multiply
@@ -70,8 +71,10 @@ func (ExprBoolean) Type() int            { return ExprType_Boolean }
 func (ExprList) Type() int               { return ExprType_List }
 func (ExprListIndex) Type() int          { return ExprType_ListIndex }
 func (ExprMap) Type() int                { return ExprType_Map }
+func (ExprVariable) Type() int           { return ExprType_Variable }
 func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 func (ExprFunction) Type() int           { return ExprType_Function }
+func (ExprVariable) String() string      { return "Variable" }
 
 func (ExprBlock) String() string              { return "Block" }
 func (ExprNumber) String() string             { return "Number" }
@@ -347,6 +350,16 @@ func (e ExprMapIndex) Decode() (result any, err error) {
 type ExprFunction struct {
 	Name string
 	Args []Expr
+}
+
+// ExprVariable represents a variable identifier in the expression, such as `_`
+type ExprVariable struct {
+	Name string
+}
+
+func (e ExprVariable) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
 }
 
 func (e ExprFunction) Decode() (result any, err error) {

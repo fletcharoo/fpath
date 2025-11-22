@@ -2755,3 +2755,245 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		})
 	}
 }
+
+func Test_Eval_FilterFunction(t *testing.T) {
+	testCases := map[string]struct {
+		query       string
+		input       any
+		expectedLen int
+		verifyFunc  func(t *testing.T, result parser.ExprList)
+	}{
+		"filter numbers greater than 3": {
+			query:       `filter([1, 2, 3, 4, 5], _ > 3)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				num1, ok := result.Values[0].(parser.ExprNumber)
+				require.True(t, ok)
+				float1, _ := num1.Value.Float64()
+				require.Equal(t, 4.0, float1)
+				num2, ok := result.Values[1].(parser.ExprNumber)
+				require.True(t, ok)
+				float2, _ := num2.Value.Float64()
+				require.Equal(t, 5.0, float2)
+			},
+		},
+		"filter exact string match": {
+			query:       `filter(["andrew", "alex", "anthony"], _ == "alex")`,
+			expectedLen: 1,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 1)
+				str, ok := result.Values[0].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "alex", str.Value)
+			},
+		},
+		"filter strings with length 5": {
+			query:       `filter(["hello", "world", "something"], len(_) == 5)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				str1, ok := result.Values[0].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "hello", str1.Value)
+				str2, ok := result.Values[1].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "world", str2.Value)
+			},
+		},
+		"filter with greater than or equal": {
+			query:       `filter([1, 2, 3, 4, 5], _ >= 3)`,
+			expectedLen: 3,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 3)
+				num1, ok := result.Values[0].(parser.ExprNumber)
+				require.True(t, ok)
+				float1, _ := num1.Value.Float64()
+				require.Equal(t, 3.0, float1)
+				num2, ok := result.Values[1].(parser.ExprNumber)
+				require.True(t, ok)
+				float2, _ := num2.Value.Float64()
+				require.Equal(t, 4.0, float2)
+				num3, ok := result.Values[2].(parser.ExprNumber)
+				require.True(t, ok)
+				float3, _ := num3.Value.Float64()
+				require.Equal(t, 5.0, float3)
+			},
+		},
+		"filter with less than": {
+			query:       `filter([1, 2, 3, 4, 5], _ < 3)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				num1, ok := result.Values[0].(parser.ExprNumber)
+				require.True(t, ok)
+				float1, _ := num1.Value.Float64()
+				require.Equal(t, 1.0, float1)
+				num2, ok := result.Values[1].(parser.ExprNumber)
+				require.True(t, ok)
+				float2, _ := num2.Value.Float64()
+				require.Equal(t, 2.0, float2)
+			},
+		},
+		"filter with less than or equal": {
+			query:       `filter([1, 2, 3, 4, 5], _ <= 2)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				num1, ok := result.Values[0].(parser.ExprNumber)
+				require.True(t, ok)
+				float1, _ := num1.Value.Float64()
+				require.Equal(t, 1.0, float1)
+				num2, ok := result.Values[1].(parser.ExprNumber)
+				require.True(t, ok)
+				float2, _ := num2.Value.Float64()
+				require.Equal(t, 2.0, float2)
+			},
+		},
+		"filter with not equals": {
+			query:       `filter([1, 2, 3, 4, 5], _ != 3)`,
+			expectedLen: 4,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 4)
+				num1, ok := result.Values[0].(parser.ExprNumber)
+				require.True(t, ok)
+				float1, _ := num1.Value.Float64()
+				require.Equal(t, 1.0, float1)
+				num2, ok := result.Values[1].(parser.ExprNumber)
+				require.True(t, ok)
+				float2, _ := num2.Value.Float64()
+				require.Equal(t, 2.0, float2)
+				num3, ok := result.Values[2].(parser.ExprNumber)
+				require.True(t, ok)
+				float3, _ := num3.Value.Float64()
+				require.Equal(t, 4.0, float3)
+				num4, ok := result.Values[3].(parser.ExprNumber)
+				require.True(t, ok)
+				float4, _ := num4.Value.Float64()
+				require.Equal(t, 5.0, float4)
+			},
+		},
+		"filter with boolean condition": {
+			query:       `filter([true, false, true], _)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				bool1, ok := result.Values[0].(parser.ExprBoolean)
+				require.True(t, ok)
+				require.True(t, bool1.Value)
+				bool2, ok := result.Values[1].(parser.ExprBoolean)
+				require.True(t, ok)
+				require.True(t, bool2.Value)
+			},
+		},
+		"filter empty result": {
+			query:       `filter([1, 2, 3, 4, 5], _ > 10)`,
+			expectedLen: 0,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 0)
+			},
+		},
+		"filter entire list matches": {
+			query:       `filter([1, 2, 3, 4, 5], _ >= 1)`,
+			expectedLen: 5,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 5)
+			},
+		},
+		"filter with function in condition": {
+			query:       `filter(["a", "hello"], len(_) >= 1)`,
+			expectedLen: 2,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 2)
+				str1, ok := result.Values[0].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "a", str1.Value)
+				str2, ok := result.Values[1].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "hello", str2.Value)
+			},
+		},
+		"filter with function in condition - complex": {
+			query:       `filter(["a", "hello", "ab"], len(_) == 2)`,
+			expectedLen: 1,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 1)
+				str, ok := result.Values[0].(parser.ExprString)
+				require.True(t, ok)
+				require.Equal(t, "ab", str.Value)
+			},
+		},
+		"filter empty list": {
+			query:       `filter([], _ > 0)`,
+			expectedLen: 0,
+			verifyFunc: func(t *testing.T, result parser.ExprList) {
+				require.Len(t, result.Values, 0)
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			// Check that the result is an ExprList
+			resultList, ok := resultDecoded.(parser.ExprList)
+			require.True(t, ok, "Expected ExprList, got %T", resultDecoded)
+
+			// Verify expected length
+			require.Equal(t, tc.expectedLen, len(resultList.Values), "List length mismatch")
+
+			// Run specific verification function
+			tc.verifyFunc(t, resultList)
+		})
+	}
+}
+
+func Test_Eval_FilterFunction_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query         string
+		input         any
+		expectedError error
+	}{
+		"filter with non-list first argument": {
+			query:         `filter(5, _ > 3)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"filter with too few arguments": {
+			query:         `filter([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"filter with too many arguments": {
+			query:         `filter([1, 2, 3], _ > 1, "extra")`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"filter with non-boolean expression": {
+			query:         `filter([1, 2, 3], _ + 1)`, // Expression doesn't return boolean
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"filter with string instead of list": {
+			query:         `filter("hello", _ == "h")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, tc.input)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedError, "Error should be of expected type")
+		})
+	}
+}
