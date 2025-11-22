@@ -2734,6 +2734,101 @@ func Test_Eval_ListIndex_Errors(t *testing.T) {
 	}
 }
 
+func Test_Eval_StringIndex(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"index into string first char": {
+			query:    `"hello"[0]`,
+			input:    nil,
+			expected: "h",
+		},
+		"index into string middle char": {
+			query:    `"hello"[1]`,
+			input:    nil,
+			expected: "e",
+		},
+		"index into string last char": {
+			query:    `"hello"[4]`,
+			input:    nil,
+			expected: "o",
+		},
+		"index with expression": {
+			query:    `"hello"[1+1]`,
+			input:    nil,
+			expected: "l",
+		},
+		"chained indexing with mixed types": {
+			query:    `[[1, 2], "hello"][1][0]`,
+			input:    nil,
+			expected: "h",
+		},
+		"string indexing from input": {
+			query:    `$[1]`,
+			input:    "world",
+			expected: "o",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_StringIndex_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query             string
+		expectedErrorType error
+	}{
+		"index out of bounds - negative": {
+			query:             `"hello"[-1]`,
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"index out of bounds - too large": {
+			query:             `"hello"[5]`,
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"index into empty string": {
+			query:             `""[0]`,
+			expectedErrorType: runtime.ErrIndexOutOfBounds,
+		},
+		"non-integer index": {
+			query:             `"hello"[1.5]`,
+			expectedErrorType: runtime.ErrInvalidIndex,
+		},
+		"non-number index": {
+			query:             `"hello"["hello"]`,
+			expectedErrorType: runtime.ErrInvalidMapIndex,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedErrorType, "Error should be of expected type")
+		})
+	}
+}
+
 func Test_Eval_Map(t *testing.T) {
 	testCases := map[string]struct {
 		query    string

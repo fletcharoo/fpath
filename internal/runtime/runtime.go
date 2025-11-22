@@ -1547,15 +1547,9 @@ func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
 		return
 	}
 
-	// Check if it's actually a list
-	if listExpr.Type() != parser.ExprType_List {
+	// Check if it's a list or string
+	if listExpr.Type() != parser.ExprType_List && listExpr.Type() != parser.ExprType_String {
 		err = fmt.Errorf("%w: cannot index into non-list expression of type %d", ErrInvalidIndex, listExpr.Type())
-		return
-	}
-
-	list, ok := listExpr.(parser.ExprList)
-	if !ok {
-		err = fmt.Errorf("failed to assert expression as list")
 		return
 	}
 
@@ -1591,14 +1585,45 @@ func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
 		return
 	}
 
-	// Check bounds
-	if index < 0 || index >= len(list.Values) {
-		err = fmt.Errorf("%w: index %d is out of bounds for list of length %d", ErrIndexOutOfBounds, index, len(list.Values))
-		return
+	// Check if it's a list
+	if listExpr.Type() == parser.ExprType_List {
+		list, ok := listExpr.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as list")
+			return
+		}
+
+		// Check bounds
+		if index < 0 || index >= len(list.Values) {
+			err = fmt.Errorf("%w: index %d is out of bounds for list of length %d", ErrIndexOutOfBounds, index, len(list.Values))
+			return
+		}
+
+		// Return the element at the index
+		return list.Values[index], nil
 	}
 
-	// Return the element at the index
-	return list.Values[index], nil
+	// Handle string indexing
+	if listExpr.Type() == parser.ExprType_String {
+		str, ok := listExpr.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as string")
+			return
+		}
+
+		// Check bounds for string
+		if index < 0 || index >= len(str.Value) {
+			err = fmt.Errorf("%w: index %d is out of bounds for string of length %d", ErrIndexOutOfBounds, index, len(str.Value))
+			return
+		}
+
+		// Return character at index as a string
+		char := string(str.Value[index])
+		return parser.ExprString{Value: char}, nil
+	}
+
+	err = fmt.Errorf("unexpected expression type in list indexing")
+	return
 }
 
 // evalVariable evaluates a variable expression like `_` and returns its value from the input context.

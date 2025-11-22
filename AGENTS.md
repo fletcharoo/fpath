@@ -4,6 +4,14 @@
 ### Operator Precedence
 fpath deliberately implements no operator precedence, evaluating all arithmetic expressions strictly left to right. This design choice simplifies the language and ensures predictable evaluation order, so `2 + 3 * 4` evaluates to `20` rather than the mathematical result of `14`. When implementing or parsing expressions, always process operators in the order they appear without applying traditional precedence rules.
 
+### String Indexing Support
+Similar to other languages, strings in fpath are treated as a list of characters (which are also strings in fpath). This means any functions or functionality that can accept a list (like indexing individual items) will also work with strings. For example:
+- `"hello"[0]` returns `"h"`
+- `"world"[2]` returns `"r"`
+- Indexing operations with expressions like `"hello"[1+1]` work as expected
+- Chained indexing with mixed types works: `[[1, 2], "hello"][1][0]` returns `"h"`
+- All error handling for out-of-bounds or invalid indices is consistent with list indexing
+
 ## Common Developer Commands
 - `make test`: Run all tests
 - `make testupdate`: Run all tests and update snapshots
