@@ -234,6 +234,27 @@ func Test_Parser_Parse(t *testing.T) {
 				}
 			},
 		},
+		"IntegerDivision operation": {
+			input: "123//456",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_IntegerDivision {
+					t.Fatalf("Expected IntegerDivision type, got %d", expr.Type())
+				}
+				intDiv, ok := expr.(ExprIntegerDivision)
+				if !ok {
+					t.Fatalf("Expected ExprIntegerDivision, got %T", expr)
+				}
+				if intDiv.Expr1.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as first operand, got %d", intDiv.Expr1.Type())
+				}
+				if intDiv.Expr2.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as second operand, got %d", intDiv.Expr2.Type())
+				}
+			},
+		},
 		"Equals operation": {
 			input: "123==456",
 			validate: func(expr Expr, err error) {

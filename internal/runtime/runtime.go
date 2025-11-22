@@ -41,6 +41,7 @@ func init() {
 		parser.ExprType_Subtract:           evalSubtract,
 		parser.ExprType_Multiply:           evalMultiply,
 		parser.ExprType_Divide:             evalDivide,
+		parser.ExprType_IntegerDivision:    evalIntegerDivision,
 		parser.ExprType_Modulo:             evalModulo,
 		parser.ExprType_Exponent:           evalExponent,
 		parser.ExprType_Equals:             evalEquals,
@@ -405,6 +406,99 @@ func evalDivideNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) 
 
 	resultNumber := parser.ExprNumber{
 		Value: expr1Number.Value.Div(expr2Number.Value),
+	}
+
+	return resultNumber, nil
+}
+
+// evalIntegerDivision accepts a parser.ExprIntegerDivision expression and performs the operation.
+func evalIntegerDivision(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprIntDiv, ok := expr.(parser.ExprIntegerDivision)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as integer division")
+		return
+	}
+
+	// Handle left-associativity for chained integer division
+	// If the second expression is also an integer division, we need to evaluate left-to-right
+	if nestedIntDiv, isNested := exprIntDiv.Expr2.(parser.ExprIntegerDivision); isNested {
+		// Evaluate (a // (b // c)) as ((a // b) // c)
+		// First evaluate a // b
+		leftResult, err := evalIntegerDivision(parser.ExprIntegerDivision{
+			Expr1: exprIntDiv.Expr1,
+			Expr2: nestedIntDiv.Expr1,
+		}, input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to evaluate left part of chained integer division: %w", err)
+		}
+
+		// Then evaluate (a // b) // c
+		return evalIntegerDivision(parser.ExprIntegerDivision{
+			Expr1: leftResult,
+			Expr2: nestedIntDiv.Expr2,
+		}, input)
+	}
+
+	expr1, err := Eval(exprIntDiv.Expr1, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate first expression: %w", err)
+		return
+	}
+
+	expr2, err := Eval(exprIntDiv.Expr2, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate second expression: %w", err)
+		return
+	}
+
+	expr1Type := expr1.Type()
+	expr2Type := expr2.Type()
+	if expr1Type != expr2Type {
+		err = fmt.Errorf("%w: %s and %s", ErrIncompatibleTypes, expr1, expr2)
+		return
+	}
+
+	switch expr1Type {
+	case parser.ExprType_Number:
+		return evalIntegerDivisionNumber(expr1, expr2)
+	default:
+		err = fmt.Errorf("invalid integer division type: %s", expr1)
+		return
+	}
+}
+
+// evalIntegerDivisionNumber accepts two parser.ExprNumber expressions and performs integer division
+// by dividing and truncating toward zero.
+func evalIntegerDivisionNumber(expr1, expr2 parser.Expr) (result parser.Expr, err error) {
+	expr1Number, ok := expr1.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert first expression as number")
+		return
+	}
+
+	expr2Number, ok := expr2.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert second expression as number")
+		return
+	}
+
+	// Check for division by zero
+	if expr2Number.Value.IsZero() {
+		err = fmt.Errorf("%w", ErrDivisionByZero)
+		return
+	}
+
+	// Perform the division
+	divisionResult := expr1Number.Value.Div(expr2Number.Value)
+
+	// Truncate toward zero (not floor) - this handles negative numbers correctly
+	// We can use decimal library's Truncate function to remove the fractional part
+	// Truncate will round towards zero, which is the desired behavior for integer division
+	truncatedResult := divisionResult.Truncate(0)
+
+	// Convert back to decimal
+	resultNumber := parser.ExprNumber{
+		Value: truncatedResult,
 	}
 
 	return resultNumber, nil

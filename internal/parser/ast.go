@@ -35,6 +35,7 @@ const (
 	ExprType_MapIndex
 	ExprType_Function
 	ExprType_Exponent
+	ExprType_IntegerDivision
 )
 
 var (
@@ -78,6 +79,7 @@ func (ExprVariable) Type() int           { return ExprType_Variable }
 func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 func (ExprFunction) Type() int           { return ExprType_Function }
 func (ExprExponent) Type() int           { return ExprType_Exponent }
+func (ExprIntegerDivision) Type() int    { return ExprType_IntegerDivision }
 func (ExprVariable) String() string      { return "Variable" }
 
 func (ExprBlock) String() string              { return "Block" }
@@ -105,6 +107,7 @@ func (ExprMap) String() string                { return "Map" }
 func (ExprMapIndex) String() string           { return "MapIndex" }
 func (ExprFunction) String() string           { return "Function" }
 func (ExprExponent) String() string           { return "Exponent" }
+func (ExprIntegerDivision) String() string    { return "IntegerDivision" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -201,6 +204,17 @@ type ExprModulo struct {
 }
 
 func (e ExprModulo) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprIntegerDivision represents an operation that divides two expressions and returns only the integer quotient.
+type ExprIntegerDivision struct {
+	Expr1 Expr
+	Expr2 Expr
+}
+
+func (e ExprIntegerDivision) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

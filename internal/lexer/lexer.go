@@ -37,6 +37,7 @@ const (
 	TokenType_Colon
 	TokenType_Comma
 	TokenType_Caret
+	TokenType_IntegerDivision
 )
 
 var (
@@ -70,6 +71,7 @@ var (
 		TokenType_Colon:              "Colon",
 		TokenType_Comma:              "Comma",
 		TokenType_Caret:              "Caret",
+		TokenType_IntegerDivision:    "IntegerDivision",
 	}
 )
 
@@ -200,6 +202,15 @@ func (l *Lexer) GetToken() (tok Token, err error) {
 			}, nil
 		case '/':
 			l.index++
+			// Check if this is the start of // operator
+			nextRune, peekErr := l.peekRune()
+			if peekErr == nil && nextRune == '/' {
+				l.index++
+				return Token{
+					Type: TokenType_IntegerDivision,
+				}, nil
+			}
+			// Single / is a slash operator
 			return Token{
 				Type: TokenType_Slash,
 			}, nil

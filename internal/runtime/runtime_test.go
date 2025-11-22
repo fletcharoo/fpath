@@ -206,6 +206,78 @@ func Test_Eval(t *testing.T) {
 			query:    "3 ^ 2 - 1",  // Left-associative: (3 ^ 2) - 1 = 9 - 1 = 8
 			expected: 8.0,
 		},
+		"integer division simple": {
+			query:    "7 // 2",
+			expected: 3.0,
+		},
+		"integer division no remainder": {
+			query:    "10 // 3",
+			expected: 3.0,
+		},
+		"integer division same numbers": {
+			query:    "5 // 5",
+			expected: 1.0,
+		},
+		"integer division one": {
+			query:    "1 // 2",
+			expected: 0.0,
+		},
+		"integer division negative result": {
+			query:    "-7 // 2",
+			expected: -3.0,
+		},
+		"integer division with decimals": {
+			query:    "7.9 // 2",
+			expected: 3.0,
+		},
+		"integer division with addition": {
+			query:    "10 + 6 // 4 * 2",  // Left-associative: (10 + 6) // 4 * 2 = 16 // 4 * 2 = 4 * 2 = 8
+			expected: 8.0,
+		},
+		"integer division left-associative": {
+			query:    "20 // 3 // 2",  // (20 // 3) // 2 = 6 // 2 = 3
+			expected: 3.0,
+		},
+		"integer division with decimals result": {
+			query:    "15.7 // 3.2",  // 15.7 / 3.2 = 4.906..., truncated to 4
+			expected: 4.0,
+		},
+		"integer division negative divided by positive": {
+			query:    "-7 // 3",  // -2.333..., truncated to -2
+			expected: -2.0,
+		},
+		"integer division positive divided by negative": {
+			query:    "7 // -3",  // -2.333..., truncated to -2
+			expected: -2.0,
+		},
+		"integer division negative divided by negative": {
+			query:    "-7 // -3",  // 2.333..., truncated to 2
+			expected: 2.0,
+		},
+		"integer division zero by positive": {
+			query:    "0 // 5",
+			expected: 0.0,
+		},
+		"integer division zero by negative": {
+			query:    "0 // -5",
+			expected: 0.0,
+		},
+		"integer division larger divisor": {
+			query:    "2 // 5",
+			expected: 0.0,
+		},
+		"integer division with complex expression": {
+			query:    "(10 + 5) // (2 * 3)",  // 15 // 6 = 2
+			expected: 2.0,
+		},
+		"integer division with parentheses": {
+			query:    "(20 // 3) // 2",  // 6 // 2 = 3
+			expected: 3.0,
+		},
+		"integer division with block": {
+			query:    "((8 + 2) // (2 + 1)) * 3",  // (10 // 3) * 3 = 3 * 3 = 9
+			expected: 9.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -732,6 +804,34 @@ func Test_Eval_DivideByZero(t *testing.T) {
 	}
 }
 
+func Test_Eval_IntegerDivideByZero(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"integer divide by zero": {
+			query: "10 // 0",
+		},
+		"integer divide by zero in complex expression": {
+			query: "(10 + 5) // (5 - 5)",
+		},
+		"integer divide by zero with multiplication": {
+			query: "10 // (2 * 0)",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for integer division by zero")
+			require.ErrorIs(t, err, runtime.ErrDivisionByZero, "Error should be ErrDivisionByZero")
+		})
+	}
+}
+
 func Test_Eval_ModuloByZero(t *testing.T) {
 	testCases := map[string]struct {
 		query string
@@ -781,6 +881,43 @@ func Test_Eval_Modulo_TypeErrors(t *testing.T) {
 		},
 		"boolean % string": {
 			query: `true % "hello"`,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, nil)
+			require.Error(t, err, "Expected runtime error for type mismatch")
+			require.ErrorIs(t, err, runtime.ErrIncompatibleTypes, "Error should be ErrIncompatibleTypes")
+		})
+	}
+}
+
+func Test_Eval_IntegerDivision_TypeErrors(t *testing.T) {
+	testCases := map[string]struct {
+		query string
+	}{
+		"number // string": {
+			query: `5 // "hello"`,
+		},
+		"string // number": {
+			query: `"hello" // 5`,
+		},
+		"number // boolean": {
+			query: `5 // true`,
+		},
+		"boolean // number": {
+			query: `true // 5`,
+		},
+		"string // boolean": {
+			query: `"hello" // true`,
+		},
+		"boolean // string": {
+			query: `true // "hello"`,
 		},
 	}
 

@@ -36,6 +36,7 @@ func init() {
 		lexer.TokenType_Minus:              operatorSubtract,
 		lexer.TokenType_Asterisk:           operatorMultiply,
 		lexer.TokenType_Slash:              operatorDivide,
+		lexer.TokenType_IntegerDivision:    operatorIntegerDivision,
 		lexer.TokenType_Modulo:             operatorModulo,
 		lexer.TokenType_Caret:              operatorExponent,
 		lexer.TokenType_Equals:             operatorEquals,
@@ -201,6 +202,7 @@ func isArithmeticOperator(tokenType int) bool {
 		   tokenType == lexer.TokenType_Minus ||
 		   tokenType == lexer.TokenType_Asterisk ||
 		   tokenType == lexer.TokenType_Slash ||
+		   tokenType == lexer.TokenType_IntegerDivision ||
 		   tokenType == lexer.TokenType_Modulo ||
 		   tokenType == lexer.TokenType_Caret
 }
@@ -731,6 +733,15 @@ func operatorOr(expr1 Expr, expr2 Expr) (op Expr) {
 // operatorExponent implements operatorFunc.
 func operatorExponent(expr1 Expr, expr2 Expr) (op Expr) {
 	return ExprExponent{
+		Expr1: expr1,
+		Expr2: expr2,
+	}
+}
+
+// operatorIntegerDivision wraps two expressions in an integer division expression.
+// operatorIntegerDivision implements operatorFunc.
+func operatorIntegerDivision(expr1 Expr, expr2 Expr) (op Expr) {
+	return ExprIntegerDivision{
 		Expr1: expr1,
 		Expr2: expr2,
 	}

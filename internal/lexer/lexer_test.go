@@ -276,6 +276,19 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Caret},
 			},
 		},
+		"IntegerDivision": {
+			input: "//",
+			expectedTokens: []Token{
+				{Type: TokenType_IntegerDivision},
+			},
+		},
+		"SlashThenSlash": {
+			input: "/ /",
+			expectedTokens: []Token{
+				{Type: TokenType_Slash},
+				{Type: TokenType_Slash},
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -486,6 +499,10 @@ func Test_Token_String(t *testing.T) {
 		"Invalid type": {
 			token:    Token{Type: 999, Value: ""},
 			expected: "Undefined",
+		},
+		"IntegerDivision": {
+			token:    Token{Type: TokenType_IntegerDivision, Value: ""},
+			expected: "IntegerDivision",
 		},
 	}
 
