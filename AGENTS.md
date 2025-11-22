@@ -61,7 +61,7 @@ require.ErrorIs(t, err, runtime.ErrIncompatibleTypes)
 ### Debugging Practices
 This project follows a test-driven debugging approach:
 
-#### NO DEbugging Files
+#### NO Debugging Files
 - **NEVER** create separate debug files (e.g., `debug.go`, `debug_parser.go`, `temp.go`)
 - Debug files cause issues including redefinition of helper functions across packages, syntax conflicts with existing code, additional cleanup work required, unclear separate between production and debug code.
 

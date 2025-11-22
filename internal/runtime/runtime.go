@@ -54,6 +54,7 @@ func init() {
 		parser.ExprType_Ternary:            evalTernary,
 		parser.ExprType_List:               evalList,
 		parser.ExprType_ListIndex:          evalListIndex,
+		parser.ExprType_ListSlice:          evalListSlice,
 		parser.ExprType_Map:                evalMap,
 		parser.ExprType_MapIndex:           evalMapIndex,
 		parser.ExprType_Function:           evalFunction,
@@ -1608,6 +1609,197 @@ func evalListIndex(expr parser.Expr, input any) (ret parser.Expr, err error) {
 
 	err = fmt.Errorf("unexpected expression type in list indexing")
 	return
+}
+
+// evalListSlice evaluates a list slicing operation like list[start:end].
+func evalListSlice(expr parser.Expr, input any) (ret parser.Expr, err error) {
+	exprListSlice, ok := expr.(parser.ExprListSlice)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as list slice")
+		return
+	}
+
+	// Evaluate the list expression
+	listExpr, err := Eval(exprListSlice.List, input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate list expression: %w", err)
+		return
+	}
+
+	// Check if it's a list or string
+	if listExpr.Type() != parser.ExprType_List && listExpr.Type() != parser.ExprType_String {
+		err = fmt.Errorf("%w: cannot slice non-list expression of type %d", ErrIncompatibleTypes, listExpr.Type())
+		return
+	}
+
+	// Evaluate the start index if provided
+	var startIndex int
+	if exprListSlice.Start != nil {
+		startExpr, err := Eval(exprListSlice.Start, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate start expression: %w", err)
+			return nil, err
+		}
+
+		// Check if start index is a number
+		if startExpr.Type() != parser.ExprType_Number {
+			err = fmt.Errorf("%w: start index must be a number, got %d", ErrInvalidIndex, startExpr.Type())
+			return nil, err
+		}
+
+		startNumber, ok := startExpr.(parser.ExprNumber)
+		if !ok {
+			err = fmt.Errorf("failed to assert start expression as number")
+			return nil, err
+		}
+
+		// Convert start index to int
+		startFloat, ok := startNumber.Value.Float64()
+		if !ok {
+			err = fmt.Errorf("failed to convert start index to float64")
+			return nil, err
+		}
+
+		startIndex = int(startFloat)
+		if startFloat != float64(startIndex) {
+			err = fmt.Errorf("%w: start index must be an integer, got %f", ErrInvalidIndex, startFloat)
+			return nil, err
+		}
+	} else {
+		// If start is omitted, default to 0
+		startIndex = 0
+	}
+
+	// Evaluate the end index if provided
+	var endIndex int
+	if exprListSlice.End != nil {
+		endExpr, err := Eval(exprListSlice.End, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate end expression: %w", err)
+			return nil, err
+		}
+
+		// Check if end index is a number
+		if endExpr.Type() != parser.ExprType_Number {
+			err = fmt.Errorf("%w: end index must be a number, got %d", ErrInvalidIndex, endExpr.Type())
+			return nil, err
+		}
+
+		endNumber, ok := endExpr.(parser.ExprNumber)
+		if !ok {
+			err = fmt.Errorf("failed to assert end expression as number")
+			return nil, err
+		}
+
+		// Convert end index to int
+		endFloat, ok := endNumber.Value.Float64()
+		if !ok {
+			err = fmt.Errorf("failed to convert end index to float64")
+			return nil, err
+		}
+
+		endIndex = int(endFloat)
+		if endFloat != float64(endIndex) {
+			err = fmt.Errorf("%w: end index must be an integer, got %f", ErrInvalidIndex, endFloat)
+			return nil, err
+		}
+	} else {
+		// If end is omitted, default to the length of the list/string
+		if listExpr.Type() == parser.ExprType_List {
+			list, ok := listExpr.(parser.ExprList)
+			if !ok {
+				err = fmt.Errorf("failed to assert expression as list")
+				return nil, err
+			}
+			endIndex = len(list.Values)
+		} else if listExpr.Type() == parser.ExprType_String {
+			str, ok := listExpr.(parser.ExprString)
+			if !ok {
+				err = fmt.Errorf("failed to assert expression as string")
+				return nil, err
+			}
+			endIndex = len(str.Value)
+		}
+	}
+
+	// Handle negative indices - convert them to positive indices
+	listLength := 0
+	if listExpr.Type() == parser.ExprType_List {
+		list, ok := listExpr.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as list")
+			return nil, err
+		}
+		listLength = len(list.Values)
+	} else {
+		str, ok := listExpr.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as string")
+			return nil, err
+		}
+		listLength = len(str.Value)
+	}
+
+	// Apply Go-style negative index conversion
+	if startIndex < 0 {
+		startIndex = listLength + startIndex
+	}
+	if endIndex < 0 {
+		endIndex = listLength + endIndex
+	}
+
+	// Clamp indices to valid range (Go-style slicing behavior)
+	if startIndex < 0 {
+		startIndex = 0
+	}
+	if startIndex > listLength {
+		startIndex = listLength
+	}
+	if endIndex < 0 {
+		endIndex = 0
+	}
+	if endIndex > listLength {
+		endIndex = listLength
+	}
+
+	// If start >= end, return empty list/string
+	if startIndex >= endIndex {
+		if listExpr.Type() == parser.ExprType_List {
+			return parser.ExprList{Values: []parser.Expr{}}, nil
+		} else {
+			_, ok := listExpr.(parser.ExprString)
+			if !ok {
+				err = fmt.Errorf("failed to assert expression as string")
+				return nil, err
+			}
+			// Return empty string slice
+			return parser.ExprString{Value: ""}, nil
+		}
+	}
+
+	// Perform the slice operation
+	if listExpr.Type() == parser.ExprType_List {
+		list, ok := listExpr.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as list")
+			return nil, err
+		}
+
+		// Return the sliced list
+		slicedValues := list.Values[startIndex:endIndex]
+		return parser.ExprList{Values: slicedValues}, nil
+	} else {
+		// Handle string slicing
+		str, ok := listExpr.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as string")
+			return nil, err
+		}
+
+		// Return the sliced string
+		slicedString := str.Value[startIndex:endIndex]
+		return parser.ExprString{Value: slicedString}, nil
+	}
 }
 
 // evalVariable evaluates a variable expression like `_` and returns its value from the input context.

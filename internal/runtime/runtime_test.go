@@ -51,7 +51,7 @@ func Test_Eval(t *testing.T) {
 		},
 		"subtract with multiplication": {
 			query:    "10 - 2 * 3",
-			expected: 24.0,  // Left-associative: (10 - 2) * 3 = 8 * 3 = 24
+			expected: 24.0, // Left-associative: (10 - 2) * 3 = 8 * 3 = 24
 		},
 		"subtract negative result": {
 			query:    "2 - 5",
@@ -124,7 +124,7 @@ func Test_Eval(t *testing.T) {
 		},
 		"modulo left-associative": {
 			query:    "100 % 17 % 7",
-			expected: 1.0,  // (100 % 17) % 7 = 15 % 7 = 1
+			expected: 1.0, // (100 % 17) % 7 = 15 % 7 = 1
 		},
 		"modulo by one": {
 			query:    "7 % 1",
@@ -195,15 +195,15 @@ func Test_Eval(t *testing.T) {
 			expected: 64.0, // 2^6 = 64
 		},
 		"exponent with multiplication in chain": {
-			query:    "2 ^ 3 * 2",  // Left-associative: (2 ^ 3) * 2 = 8 * 2 = 16
+			query:    "2 ^ 3 * 2", // Left-associative: (2 ^ 3) * 2 = 8 * 2 = 16
 			expected: 16.0,
 		},
 		"exponent with division in chain": {
-			query:    "2 ^ 4 / 2",  // Left-associative: (2 ^ 4) / 2 = 16 / 2 = 8
+			query:    "2 ^ 4 / 2", // Left-associative: (2 ^ 4) / 2 = 16 / 2 = 8
 			expected: 8.0,
 		},
 		"exponent with subtraction in chain": {
-			query:    "3 ^ 2 - 1",  // Left-associative: (3 ^ 2) - 1 = 9 - 1 = 8
+			query:    "3 ^ 2 - 1", // Left-associative: (3 ^ 2) - 1 = 9 - 1 = 8
 			expected: 8.0,
 		},
 		"integer division simple": {
@@ -231,27 +231,27 @@ func Test_Eval(t *testing.T) {
 			expected: 3.0,
 		},
 		"integer division with addition": {
-			query:    "10 + 6 // 4 * 2",  // Left-associative: (10 + 6) // 4 * 2 = 16 // 4 * 2 = 4 * 2 = 8
+			query:    "10 + 6 // 4 * 2", // Left-associative: (10 + 6) // 4 * 2 = 16 // 4 * 2 = 4 * 2 = 8
 			expected: 8.0,
 		},
 		"integer division left-associative": {
-			query:    "20 // 3 // 2",  // (20 // 3) // 2 = 6 // 2 = 3
+			query:    "20 // 3 // 2", // (20 // 3) // 2 = 6 // 2 = 3
 			expected: 3.0,
 		},
 		"integer division with decimals result": {
-			query:    "15.7 // 3.2",  // 15.7 / 3.2 = 4.906..., truncated to 4
+			query:    "15.7 // 3.2", // 15.7 / 3.2 = 4.906..., truncated to 4
 			expected: 4.0,
 		},
 		"integer division negative divided by positive": {
-			query:    "-7 // 3",  // -2.333..., truncated to -2
+			query:    "-7 // 3", // -2.333..., truncated to -2
 			expected: -2.0,
 		},
 		"integer division positive divided by negative": {
-			query:    "7 // -3",  // -2.333..., truncated to -2
+			query:    "7 // -3", // -2.333..., truncated to -2
 			expected: -2.0,
 		},
 		"integer division negative divided by negative": {
-			query:    "-7 // -3",  // 2.333..., truncated to 2
+			query:    "-7 // -3", // 2.333..., truncated to 2
 			expected: 2.0,
 		},
 		"integer division zero by positive": {
@@ -267,15 +267,15 @@ func Test_Eval(t *testing.T) {
 			expected: 0.0,
 		},
 		"integer division with complex expression": {
-			query:    "(10 + 5) // (2 * 3)",  // 15 // 6 = 2
+			query:    "(10 + 5) // (2 * 3)", // 15 // 6 = 2
 			expected: 2.0,
 		},
 		"integer division with parentheses": {
-			query:    "(20 // 3) // 2",  // 6 // 2 = 3
+			query:    "(20 // 3) // 2", // 6 // 2 = 3
 			expected: 3.0,
 		},
 		"integer division with block": {
-			query:    "((8 + 2) // (2 + 1)) * 3",  // (10 // 3) * 3 = 3 * 3 = 9
+			query:    "((8 + 2) // (2 + 1)) * 3", // (10 // 3) * 3 = 3 * 3 = 9
 			expected: 9.0,
 		},
 	}
@@ -3399,6 +3399,185 @@ func Test_Eval_FilterFunction_Errors(t *testing.T) {
 			_, err = runtime.Eval(expr, tc.input)
 			require.Error(t, err, "Expected runtime error")
 			require.ErrorIs(t, err, tc.expectedError, "Error should be of expected type")
+		})
+	}
+}
+func Test_Eval_ListSlice(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected []any
+	}{
+		"slice with start and end": {
+			query:    "[1, 2, 3, 4, 5][1:3]",
+			expected: []any{2.0, 3.0},
+		},
+		"slice with only start (omitted end)": {
+			query:    "[1, 2, 3][1:]",
+			expected: []any{2.0, 3.0},
+		},
+		"slice with only end (omitted start)": {
+			query:    "[1, 2, 3][:2]",
+			expected: []any{1.0, 2.0},
+		},
+		"slice with no bounds (full slice)": {
+			query:    "[1, 2, 3][:]",
+			expected: []any{1.0, 2.0, 3.0},
+		},
+		"slice with complex start expression": {
+			query:    "[1, 2, 3, 4, 5][1+1:4]",
+			expected: []any{3.0, 4.0},
+		},
+		"slice with complex end expression": {
+			query:    "[1, 2, 3, 4, 5][1:4-1]",
+			expected: []any{2.0, 3.0},
+		},
+		"slice with complex start and end expressions": {
+			query:    "[1, 2, 3, 4, 5][1+1:4-1]",
+			expected: []any{3.0},
+		},
+		"slice with negative start index": {
+			query:    "[1, 2, 3, 4, 5][-2:]",
+			expected: []any{4.0, 5.0},
+		},
+		"slice with negative end index": {
+			query:    "[1, 2, 3, 4, 5][:-1]",
+			expected: []any{1.0, 2.0, 3.0, 4.0},
+		},
+		"slice with negative start and end indices": {
+			query:    "[1, 2, 3, 4, 5][-3:-1]",
+			expected: []any{3.0, 4.0},
+		},
+		"slice with start and end equal": {
+			query:    "[1, 2, 3][1:1]",
+			expected: []any{}, // Should return empty list
+		},
+		"slice with start greater than end": {
+			query:    "[1, 2, 3][2:1]",
+			expected: []any{}, // Should return empty list
+		},
+		"slice with out of bounds indices": {
+			query:    "[1, 2, 3][1:10]",
+			expected: []any{2.0, 3.0}, // Should return from start to end of list
+		},
+		"slice with negative out of bounds indices": {
+			query:    "[1, 2, 3][-10:2]",
+			expected: []any{1.0, 2.0}, // Should clamp to start of list
+		},
+		"empty slice result": {
+			query:    "[][:]",
+			expected: []any{}, // Should return empty list
+		},
+		"chained slicing and indexing": {
+			query:    "[[1, 2], [3, 4], [5, 6]][1:][0][1:]",
+			expected: []any{4.0},
+		},
+		"slice with mixed types": {
+			query:    "[1, true, \"hello\", 3.14][:3]",
+			expected: []any{1.0, true, "hello"},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			// Check that the result is an ExprList
+			resultList, ok := resultDecoded.(parser.ExprList)
+			require.True(t, ok, "Expected ExprList, got %T", resultDecoded)
+
+			// Compare lengths
+			require.Equal(t, len(tc.expected), len(resultList.Values), "List length mismatch")
+
+			// Compare each element
+			for i, expectedValue := range tc.expected {
+				valueDecoded, err := resultList.Values[i].Decode()
+				require.NoError(t, err, "Failed to decode list element %d", i)
+				require.Equal(t, expectedValue, valueDecoded, "Element %d does not match expected value", i)
+			}
+		})
+	}
+}
+
+func Test_Eval_StringSlice(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		expected string
+	}{
+		"slice string with start and end": {
+			query:    `"hello"[1:4]`,
+			expected: "ell",
+		},
+		"slice string with only start (omitted end)": {
+			query:    `"hello"[1:]`,
+			expected: "ello",
+		},
+		"slice string with only end (omitted start)": {
+			query:    `"hello"[:3]`,
+			expected: "hel",
+		},
+		"slice string with no bounds (full slice)": {
+			query:    `"hello"[:]`,
+			expected: "hello",
+		},
+		"slice string with negative start": {
+			query:    `"world"[-2:]`,
+			expected: "ld",
+		},
+		"slice string with negative end": {
+			query:    `"world"[:-1]`,
+			expected: "worl",
+		},
+		"slice string with negative start and end": {
+			query:    `"hello"[-4:-1]`,
+			expected: "ell",
+		},
+		"slice string with start and end equal": {
+			query:    `"hello"[2:2]`,
+			expected: "",
+		},
+		"slice string with start greater than end": {
+			query:    `"hello"[3:2]`,
+			expected: "",
+		},
+		"slice empty string": {
+			query:    `""[:]`,
+			expected: "",
+		},
+		"slice string with out of bounds indices": {
+			query:    `"hi"[0:10]`,
+			expected: "hi",
+		},
+		"slice string with negative out of bounds indices": {
+			query:    `"hello"[-10:3]`,
+			expected: "hel",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, nil)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			// Check that the result is an ExprString
+			resultString, ok := resultDecoded.(string)
+			require.True(t, ok, "Expected ExprString, got %T", resultDecoded)
+
+			require.Equal(t, tc.expected, resultString, "String value does not match expected value")
 		})
 	}
 }

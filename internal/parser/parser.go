@@ -754,14 +754,44 @@ func (p *Parser) parseListIndex(listExpr Expr) (expr Expr, err error) {
 		return
 	}
 
-	// Parse the index expression
+	// Peek at the next token to check if it's a colon (for slice syntax with omitted start)
+	nextTok, nextErr := p.lexer.PeekToken()
+	if nextErr != nil && !errors.Is(nextErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", nextErr)
+		return
+	}
+
+	// If the next token is a colon, we're dealing with slice syntax with omitted start (like [:2])
+	if nextErr == nil && nextTok.Type == lexer.TokenType_Colon {
+		// Consume the colon
+		p.lexer.GetToken()
+		// Parse the slice operation with nil start
+		return p.parseListSlice(listExpr, nil)
+	}
+
+	// Otherwise, parse the index expression as normal
 	indexExpr, err := p.Parse()
 	if err != nil {
 		err = fmt.Errorf("failed to parse list index: %w", err)
 		return
 	}
 
-	// Expect a right bracket
+	// Peek again to check if it's a colon (for slice syntax with provided start)
+	nextTok, nextErr = p.lexer.PeekToken()
+	if nextErr != nil && !errors.Is(nextErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", nextErr)
+		return
+	}
+
+	// If the next token is a colon, we're dealing with slice syntax
+	if nextErr == nil && nextTok.Type == lexer.TokenType_Colon {
+		// Consume the colon
+		p.lexer.GetToken()
+		// Parse the slice operation
+		return p.parseListSlice(listExpr, indexExpr)
+	}
+
+	// If not a colon, this is a simple index operation
 	tok, err := p.lexer.GetToken()
 	if err != nil {
 		err = fmt.Errorf("failed to get token: %w", err)
@@ -780,6 +810,55 @@ func (p *Parser) parseListIndex(listExpr Expr) (expr Expr, err error) {
 	})
 }
 
+// parseListSlice parses a list slicing operation like list[start:end].
+func (p *Parser) parseListSlice(listExpr Expr, startExpr Expr) (expr Expr, err error) {
+	if p == nil {
+		err = fmt.Errorf("parser is nil")
+		return
+	}
+
+	// Parse the end expression (it's optional - could be just list[start:])
+	var endExpr Expr
+
+	// Peek to see if there's an end expression after the colon
+	nextTok, peekErr := p.lexer.PeekToken()
+	if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", peekErr)
+		return
+	}
+
+	// If the next token is not a right bracket, parse the end expression
+	if peekErr == nil && nextTok.Type != lexer.TokenType_RightBracket {
+		endExpr, err = p.Parse()
+		if err != nil {
+			err = fmt.Errorf("failed to parse slice end index: %w", err)
+			return
+		}
+	}
+
+	// Expect a right bracket
+	tok, err := p.lexer.GetToken()
+	if err != nil {
+		err = fmt.Errorf("failed to get token: %w", err)
+		return
+	}
+
+	if tok.Type != lexer.TokenType_RightBracket {
+		err = fmt.Errorf("%w RightBracket, got %s", ErrExpectedToken, tok)
+		return
+	}
+
+	// Create the list slice expression
+	sliceExpr := ExprListSlice{
+		List:  listExpr,
+		Start: startExpr,
+		End:   endExpr,
+	}
+
+	// Check for chained indexing (e.g., [1,2,3][1:3][0])
+	return p.wrapOperation(sliceExpr)
+}
+
 // parseMapIndex parses a map indexing operation.
 func (p *Parser) parseMapIndex(mapExpr Expr) (expr Expr, err error) {
 	if p == nil {
@@ -794,7 +873,52 @@ func (p *Parser) parseMapIndex(mapExpr Expr) (expr Expr, err error) {
 		return
 	}
 
-	// Expect a right bracket
+	// Peek at the next token to check if it's a colon (for slice syntax)
+	nextTok, nextErr := p.lexer.PeekToken()
+	if nextErr != nil && !errors.Is(nextErr, io.EOF) {
+		err = fmt.Errorf("failed to peek token: %w", nextErr)
+		return
+	}
+
+	// If the next token is a colon, this is an attempt to slice a map, which is not supported
+	if nextErr == nil && nextTok.Type == lexer.TokenType_Colon {
+		// Consume the colon
+		p.lexer.GetToken()
+
+		// Peek to see if there's an end expression after the colon
+		endNextTok, peekErr := p.lexer.PeekToken()
+		if peekErr != nil && !errors.Is(peekErr, io.EOF) {
+			err = fmt.Errorf("failed to peek token: %w", peekErr)
+			return
+		}
+
+		// If the next token is not a right bracket, parse the end expression (just to consume it)
+		if peekErr == nil && endNextTok.Type != lexer.TokenType_RightBracket {
+			_, parseErr := p.Parse()
+			if parseErr != nil {
+				err = fmt.Errorf("failed to parse map slice end index: %w", parseErr)
+				return
+			}
+		}
+
+		// Expect a right bracket
+		tok, getErr := p.lexer.GetToken()
+		if getErr != nil {
+			err = fmt.Errorf("failed to get token: %w", getErr)
+			return
+		}
+
+		if tok.Type != lexer.TokenType_RightBracket {
+			err = fmt.Errorf("%w RightBracket, got %s", ErrExpectedToken, tok)
+			return
+		}
+
+		// Return an error for attempting to slice a map
+		err = fmt.Errorf("cannot slice map: maps do not support slicing operations")
+		return
+	}
+
+	// If not a colon, this is a simple index operation
 	tok, err := p.lexer.GetToken()
 	if err != nil {
 		err = fmt.Errorf("failed to get token: %w", err)

@@ -36,6 +36,7 @@ const (
 	ExprType_Function
 	ExprType_Exponent
 	ExprType_IntegerDivision
+	ExprType_ListSlice
 )
 
 var (
@@ -80,6 +81,7 @@ func (ExprMapIndex) Type() int           { return ExprType_MapIndex }
 func (ExprFunction) Type() int           { return ExprType_Function }
 func (ExprExponent) Type() int           { return ExprType_Exponent }
 func (ExprIntegerDivision) Type() int    { return ExprType_IntegerDivision }
+func (ExprListSlice) Type() int          { return ExprType_ListSlice }
 func (ExprVariable) String() string      { return "Variable" }
 
 func (ExprBlock) String() string              { return "Block" }
@@ -108,6 +110,7 @@ func (ExprMapIndex) String() string           { return "MapIndex" }
 func (ExprFunction) String() string           { return "Function" }
 func (ExprExponent) String() string           { return "Exponent" }
 func (ExprIntegerDivision) String() string    { return "IntegerDivision" }
+func (ExprListSlice) String() string          { return "ListSlice" }
 
 // ExprBlock represents a grouped expression.
 type ExprBlock struct {
@@ -373,6 +376,18 @@ type ExprMapIndex struct {
 }
 
 func (e ExprMapIndex) Decode() (result any, err error) {
+	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
+	return
+}
+
+// ExprListSlice represents a slicing operation into a list expression with optional start and end indices.
+type ExprListSlice struct {
+	List  Expr
+	Start Expr  // optional
+	End   Expr  // optional
+}
+
+func (e ExprListSlice) Decode() (result any, err error) {
 	err = fmt.Errorf("%w: %s", ErrInvalidDecode, e)
 	return
 }

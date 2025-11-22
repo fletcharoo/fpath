@@ -1038,3 +1038,169 @@ func Test_Parser_Parse_MapIndex(t *testing.T) {
 		})
 	}
 }
+
+func Test_Parser_Parse_ListSlice(t *testing.T) {
+	testCases := map[string]struct {
+		input    string
+		validate func(Expr, error)
+	}{
+		"List slice with start and end": {
+			input: "[1, 2, 3, 4, 5][1:3]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				if slice.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", slice.List.Type())
+				}
+				if slice.Start.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as start operand, got %d", slice.Start.Type())
+				}
+				if slice.End.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as end operand, got %d", slice.End.Type())
+				}
+			},
+		},
+		"List slice with only start (omitted end)": {
+			input: "[1, 2, 3][1:]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				if slice.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", slice.List.Type())
+				}
+				if slice.Start.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as start operand, got %d", slice.Start.Type())
+				}
+				// End should be nil (optional)
+				if slice.End != nil {
+					t.Fatalf("Expected nil end operand for slice [1:], got %T", slice.End)
+				}
+			},
+		},
+		"List slice with only end (omitted start)": {
+			input: "[1, 2, 3][:2]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				if slice.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", slice.List.Type())
+				}
+				if slice.Start != nil {
+					t.Fatalf("Expected nil start operand for slice [:2], got %T", slice.Start)
+				}
+				if slice.End.Type() != ExprType_Number {
+					t.Fatalf("Expected Number as end operand, got %d", slice.End.Type())
+				}
+			},
+		},
+		"List slice with no bounds (full slice)": {
+			input: "[1, 2, 3][:]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				if slice.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", slice.List.Type())
+				}
+				if slice.Start != nil {
+					t.Fatalf("Expected nil start operand for slice [:], got %T", slice.Start)
+				}
+				if slice.End != nil {
+					t.Fatalf("Expected nil end operand for slice [:], got %T", slice.End)
+				}
+			},
+		},
+		"Complex slice expressions": {
+			input: "[1, 2, 3, 4, 5][1+1:4-1]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				if slice.List.Type() != ExprType_List {
+					t.Fatalf("Expected List as list operand, got %d", slice.List.Type())
+				}
+				if slice.Start.Type() != ExprType_Add {
+					t.Fatalf("Expected Add expression as start operand, got %d", slice.Start.Type())
+				}
+				if slice.End.Type() != ExprType_Subtract {
+					t.Fatalf("Expected Subtract expression as end operand, got %d", slice.End.Type())
+				}
+			},
+		},
+		"Chained indexing with slice": {
+			input: "[[1, 2], [3, 4]][0][1:]",
+			validate: func(expr Expr, err error) {
+				if err != nil {
+					t.Fatalf("Unexpected error: %s", err)
+				}
+				if expr.Type() != ExprType_ListSlice {
+					t.Fatalf("Expected ListSlice type, got %d", expr.Type())
+				}
+				slice, ok := expr.(ExprListSlice)
+				if !ok {
+					t.Fatalf("Expected ExprListSlice, got %T", expr)
+				}
+				// The list should be a ListIndex operation
+				if slice.List.Type() != ExprType_ListIndex {
+					t.Fatalf("Expected ListIndex as list operand, got %d", slice.List.Type())
+				}
+			},
+		},
+		"Map slice error": {
+			input: "{\"a\": 1, \"b\": 2}[\"a\":",
+			validate: func(expr Expr, err error) {
+				if err == nil {
+					t.Fatalf("Expected error for map slicing, but got none")
+				}
+				// Should return an error about maps not supporting slicing
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.input)
+			parser := New(lex)
+			expr, err := parser.Parse()
+			tc.validate(expr, err)
+		})
+	}
+}

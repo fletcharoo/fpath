@@ -252,6 +252,48 @@ func Test_Lexer_getToken(t *testing.T) {
 				{Type: TokenType_Colon},
 			},
 		},
+		"SliceSyntax": {
+			input: "[2:4]",
+			expectedTokens: []Token{
+				{Type: TokenType_LeftBracket},
+				{Type: TokenType_Number, Value: "2"},
+				{Type: TokenType_Colon},
+				{Type: TokenType_Number, Value: "4"},
+				{Type: TokenType_RightBracket},
+			},
+		},
+		"SliceStartOnly": {
+			input: "[:3]",
+			expectedTokens: []Token{
+				{Type: TokenType_LeftBracket},
+				{Type: TokenType_Colon},
+				{Type: TokenType_Number, Value: "3"},
+				{Type: TokenType_RightBracket},
+			},
+		},
+		"SliceEndOnly": {
+			input: "[2:]",
+			expectedTokens: []Token{
+				{Type: TokenType_LeftBracket},
+				{Type: TokenType_Number, Value: "2"},
+				{Type: TokenType_Colon},
+				{Type: TokenType_RightBracket},
+			},
+		},
+		"ComplexSliceExpression": {
+			input: "[1+2:3+4]",
+			expectedTokens: []Token{
+				{Type: TokenType_LeftBracket},
+				{Type: TokenType_Number, Value: "1"},
+				{Type: TokenType_Plus},
+				{Type: TokenType_Number, Value: "2"},
+				{Type: TokenType_Colon},
+				{Type: TokenType_Number, Value: "3"},
+				{Type: TokenType_Plus},
+				{Type: TokenType_Number, Value: "4"},
+				{Type: TokenType_RightBracket},
+			},
+		},
 		"Dollar": {
 			input: "$",
 			expectedTokens: []Token{
