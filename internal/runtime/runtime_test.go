@@ -3091,6 +3091,40 @@ func Test_Eval_Function(t *testing.T) {
 			query:    `len("hello") == 5`,
 			expected: true,
 		},
+		"abs with positive integer": {
+			query:    `abs(5)`,
+			expected: 5.0,
+		},
+		"abs with negative integer": {
+			query:    `abs(-5)`,
+			expected: 5.0,
+		},
+		"abs with zero": {
+			query:    `abs(0)`,
+			expected: 0.0,
+		},
+		"abs with positive decimal": {
+			query:    `abs(3.0)`,
+			expected: 3.0,
+		},
+		"abs with negative decimal": {
+			query:    `abs(-3.0)`,
+			expected: 3.0,
+		},
+		"abs with expression": {
+			query:    `abs(0 - 2 + 3)`,
+			expected: 1.0,
+		},
+		"abs with input negative number": {
+			query:    `abs($)`,
+			input:    -10,
+			expected: 10.0,
+		},
+		"abs with input positive number": {
+			query:    `abs($)`,
+			input:    7.5,
+			expected: 7.5,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -3269,6 +3303,40 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		"contains with input number as first argument": {
 			query:         `contains($, "test")`,
 			input:         42,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with no arguments": {
+			query:         `abs()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"abs with too many arguments": {
+			query:         `abs(1, 2)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"abs with string argument": {
+			query:         `abs("hello")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with boolean argument": {
+			query:         `abs(true)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with list argument": {
+			query:         `abs([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with map argument": {
+			query:         `abs({"a": 1})`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with input string": {
+			query:         `abs($)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"abs with input boolean": {
+			query:         `abs($)`,
+			input:         true,
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
 	}

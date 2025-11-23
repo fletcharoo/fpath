@@ -65,6 +65,7 @@ func init() {
 		"len":      evalLenFunction,
 		"filter":   evalFilterFunction,
 		"contains": evalContainsFunction,
+		"abs":      evalAbsFunction,
 	}
 }
 
@@ -2268,6 +2269,37 @@ func evalFilterExpression(expr parser.Expr, element parser.Expr) (parser.Expr, e
 	// Evaluate the filter expression with the element as input context
 	// This allows the variable `_` to resolve to the current element during evaluation
 	return Eval(expr, elementData)
+}
+
+// evalAbsFunction implements the abs() built-in function.
+// Returns the absolute value of a number.
+func evalAbsFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 {
+		err = fmt.Errorf("%w: abs() expects exactly 1 argument, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate the argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate abs() argument: %w", err)
+		return
+	}
+
+	// Check that the argument is a number
+	if argExpr.Type() != parser.ExprType_Number {
+		err = fmt.Errorf("%w: abs() can only be applied to numbers, got %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
+
+	exprNumber, ok := argExpr.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as number")
+		return
+	}
+
+	// Return the absolute value using decimal's Abs method
+	return parser.ExprNumber{Value: exprNumber.Value.Abs()}, nil
 }
 
 // convertInputToExpr converts input data to appropriate expression types.
