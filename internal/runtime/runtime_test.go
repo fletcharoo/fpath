@@ -3561,6 +3561,97 @@ func Test_Eval_Function_Floor(t *testing.T) {
 	}
 }
 
+func Test_Eval_Function_Ceil(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected float64
+	}{
+		"ceil with positive decimal less than .5": {
+			query:    `ceil(3.2)`,
+			expected: 4.0,
+		},
+		"ceil with positive decimal greater than .5": {
+			query:    `ceil(3.8)`,
+			expected: 4.0,
+		},
+		"ceil with negative decimal less than .5": {
+			query:    `ceil(-3.2)`,
+			expected: -3.0,
+		},
+		"ceil with negative decimal greater than .5": {
+			query:    `ceil(-3.8)`,
+			expected: -3.0,
+		},
+		"ceil with zero": {
+			query:    `ceil(0)`,
+			expected: 0.0,
+		},
+		"ceil with positive integer": {
+			query:    `ceil(5.0)`,
+			expected: 5.0,
+		},
+		"ceil with negative integer": {
+			query:    `ceil(-5.0)`,
+			expected: -5.0,
+		},
+		"ceil with small positive decimal": {
+			query:    `ceil(0.1)`,
+			expected: 1.0,
+		},
+		"ceil with small negative decimal": {
+			query:    `ceil(-0.1)`,
+			expected: 0.0,
+		},
+		"ceil with expression": {
+			query:    `ceil(2.5 + 1.2)`,
+			expected: 4.0,
+		},
+		"ceil with complex expression": {
+			query:    `ceil((3.7 + 2.3) * 1.5)`,
+			expected: 9.0,
+		},
+		"ceil with input data": {
+			query:    `ceil($)`,
+			input:    2.7,
+			expected: 3.0,
+		},
+		"ceil with input negative": {
+			query:    `ceil($)`,
+			input:    -2.7,
+			expected: -2.0,
+		},
+		"ceil with very small decimal": {
+			query:    `ceil(0.0001)`,
+			expected: 1.0,
+		},
+		"ceil with large number": {
+			query:    `ceil(123456789.9)`,
+			expected: 123456790.0,
+		},
+		"ceil with negative large number": {
+			query:    `ceil(-123456789.1)`,
+			expected: -123456789.0,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
 func Test_Eval_Function_Errors(t *testing.T) {
 	testCases := map[string]struct {
 		query         string
@@ -3851,6 +3942,50 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		},
 		"floor with input map": {
 			query:         `floor($)`,
+			input:         map[string]any{"a": 1},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with no arguments": {
+			query:         `ceil()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"ceil with too many arguments": {
+			query:         `ceil(1.5, 2.5)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"ceil with string argument": {
+			query:         `ceil("hello")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with boolean argument": {
+			query:         `ceil(true)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with list argument": {
+			query:         `ceil([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with map argument": {
+			query:         `ceil({"a": 1})`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with input string": {
+			query:         `ceil($)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with input boolean": {
+			query:         `ceil($)`,
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with input list": {
+			query:         `ceil($)`,
+			input:         []any{1, 2, 3},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"ceil with input map": {
+			query:         `ceil($)`,
 			input:         map[string]any{"a": 1},
 			expectedError: runtime.ErrInvalidArgumentType,
 		},

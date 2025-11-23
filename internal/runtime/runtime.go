@@ -70,6 +70,7 @@ func init() {
 		"max":      evalMaxFunction,
 		"round":    evalRoundFunction,
 		"floor":    evalFloorFunction,
+		"ceil":     evalCeilFunction,
 	}
 }
 
@@ -2443,6 +2444,37 @@ func evalFloorFunction(args []parser.Expr, input any) (ret parser.Expr, err erro
 
 	// Use shopspring decimal's Floor() method
 	return parser.ExprNumber{Value: exprNumber.Value.Floor()}, nil
+}
+
+// evalCeilFunction implements ceil() built-in function.
+// Returns the smallest integer greater than or equal to the input number (always rounds up).
+func evalCeilFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 {
+		err = fmt.Errorf("%w: ceil() expects exactly 1 argument, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate first argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate ceil() argument: %w", err)
+		return
+	}
+
+	// Check that argument is a number
+	if argExpr.Type() != parser.ExprType_Number {
+		err = fmt.Errorf("%w: ceil() can only be applied to numbers, got %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
+
+	exprNumber, ok := argExpr.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as number")
+		return
+	}
+
+	// Use shopspring decimal's Ceil() method
+	return parser.ExprNumber{Value: exprNumber.Value.Ceil()}, nil
 }
 
 // evalMinFunction implements the min() built-in function.
