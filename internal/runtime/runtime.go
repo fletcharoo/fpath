@@ -69,6 +69,7 @@ func init() {
 		"min":      evalMinFunction,
 		"max":      evalMaxFunction,
 		"round":    evalRoundFunction,
+		"floor":    evalFloorFunction,
 	}
 }
 
@@ -2379,7 +2380,7 @@ func evalRoundFunction(args []parser.Expr, input any) (ret parser.Expr, err erro
 	if decimalPlaces == 0 {
 		// Extract the absolute value to check the fractional part
 		absValue := inputValue.Abs()
-		truncatedValue := absValue.Truncate(0) // Get integer part
+		truncatedValue := absValue.Truncate(0)         // Get integer part
 		fractionalPart := absValue.Sub(truncatedValue) // Get fractional part
 
 		// Define 0.5 as a decimal for comparison
@@ -2411,6 +2412,37 @@ func evalRoundFunction(args []parser.Expr, input any) (ret parser.Expr, err erro
 		// For decimal places other than 0, use normal rounding
 		return parser.ExprNumber{Value: inputValue.Round(decimalPlaces)}, nil
 	}
+}
+
+// evalFloorFunction implements floor() built-in function.
+// Returns the largest integer less than or equal to the input number (always rounds down).
+func evalFloorFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 {
+		err = fmt.Errorf("%w: floor() expects exactly 1 argument, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate first argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate floor() argument: %w", err)
+		return
+	}
+
+	// Check that argument is a number
+	if argExpr.Type() != parser.ExprType_Number {
+		err = fmt.Errorf("%w: floor() can only be applied to numbers, got %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
+
+	exprNumber, ok := argExpr.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as number")
+		return
+	}
+
+	// Use shopspring decimal's Floor() method
+	return parser.ExprNumber{Value: exprNumber.Value.Floor()}, nil
 }
 
 // evalMinFunction implements the min() built-in function.

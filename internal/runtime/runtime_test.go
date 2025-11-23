@@ -3470,6 +3470,97 @@ func Test_Eval_ContainsFunction(t *testing.T) {
 	}
 }
 
+func Test_Eval_Function_Floor(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected float64
+	}{
+		"floor with positive decimal less than .5": {
+			query:    `floor(3.2)`,
+			expected: 3.0,
+		},
+		"floor with positive decimal greater than .5": {
+			query:    `floor(3.8)`,
+			expected: 3.0,
+		},
+		"floor with negative decimal less than .5": {
+			query:    `floor(-3.2)`,
+			expected: -4.0,
+		},
+		"floor with negative decimal greater than .5": {
+			query:    `floor(-3.8)`,
+			expected: -4.0,
+		},
+		"floor with zero": {
+			query:    `floor(0)`,
+			expected: 0.0,
+		},
+		"floor with positive integer": {
+			query:    `floor(5.0)`,
+			expected: 5.0,
+		},
+		"floor with negative integer": {
+			query:    `floor(-5.0)`,
+			expected: -5.0,
+		},
+		"floor with small positive decimal": {
+			query:    `floor(0.1)`,
+			expected: 0.0,
+		},
+		"floor with small negative decimal": {
+			query:    `floor(-0.1)`,
+			expected: -1.0,
+		},
+		"floor with expression": {
+			query:    `floor(2.5 + 1.2)`,
+			expected: 3.0,
+		},
+		"floor with complex expression": {
+			query:    `floor((3.7 + 2.3) * 1.5)`,
+			expected: 9.0,
+		},
+		"floor with input data": {
+			query:    `floor($)`,
+			input:    2.7,
+			expected: 2.0,
+		},
+		"floor with input negative": {
+			query:    `floor($)`,
+			input:    -2.7,
+			expected: -3.0,
+		},
+		"floor with very small decimal": {
+			query:    `floor(0.0001)`,
+			expected: 0.0,
+		},
+		"floor with large number": {
+			query:    `floor(123456789.9)`,
+			expected: 123456789.0,
+		},
+		"floor with negative large number": {
+			query:    `floor(-123456789.1)`,
+			expected: -123456790.0,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+		})
+	}
+}
+
 func Test_Eval_Function_Errors(t *testing.T) {
 	testCases := map[string]struct {
 		query         string
@@ -3716,6 +3807,50 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		},
 		"round with input map": {
 			query:         `round($)`,
+			input:         map[string]any{"a": 1},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with no arguments": {
+			query:         `floor()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"floor with too many arguments": {
+			query:         `floor(1.5, 2.5)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"floor with string argument": {
+			query:         `floor("hello")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with boolean argument": {
+			query:         `floor(true)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with list argument": {
+			query:         `floor([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with map argument": {
+			query:         `floor({"a": 1})`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with input string": {
+			query:         `floor($)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with input boolean": {
+			query:         `floor($)`,
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with input list": {
+			query:         `floor($)`,
+			input:         []any{1, 2, 3},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"floor with input map": {
+			query:         `floor($)`,
 			input:         map[string]any{"a": 1},
 			expectedError: runtime.ErrInvalidArgumentType,
 		},
