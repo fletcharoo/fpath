@@ -3196,6 +3196,77 @@ func Test_Eval_Function(t *testing.T) {
 			query:    `min(10, [2+3, 5-1])`,
 			expected: 4.0,
 		},
+		"max with two integers": {
+			query:    `max(1, 2)`,
+			expected: 2.0,
+		},
+		"max with three decimals": {
+			query:    `max(5.5, 3.25, 4.75)`,
+			expected: 5.5,
+		},
+		"max with negative numbers": {
+			query:    `max(-1, -5, 0)`,
+			expected: 0.0,
+		},
+		"max with mixed integer and decimal": {
+			query:    `max(1.25, 2)`,
+			expected: 2.0,
+		},
+		"max with expressions": {
+			query:    `max(2+3, 5-1)`,
+			expected: 5.0,
+		},
+		"max with input data": {
+			query:    `max($, 10)`,
+			input:    5,
+			expected: 10.0,
+		},
+		"max with input data smaller": {
+			query:    `max($, 10)`,
+			input:    3,
+			expected: 10.0,
+		},
+		"max with input data larger": {
+			query:    `max($, 10)`,
+			input:    15,
+			expected: 15.0,
+		},
+		"max with many arguments": {
+			query:    `max(10, 5, 8, 3, 12, 1, 7)`,
+			expected: 12.0,
+		},
+		"max with zero": {
+			query:    `max(0, 5, -2)`,
+			expected: 5.0,
+		},
+		"max with list expansion": {
+			query:    `max(1, 2, [3, 4, 5])`,
+			expected: 5.0,
+		},
+		"max with list expansion where list contains maximum": {
+			query:    `max(10, 15, [5, 20, 25])`,
+			expected: 25.0,
+		},
+		"max with multiple lists": {
+			query:    `max([1, 3], [2, 4])`,
+			expected: 4.0,
+		},
+		"max with list and mixed numbers": {
+			query:    `max(7.5, [3.25, 8.75], 5)`,
+			expected: 8.75,
+		},
+		"max with empty list and numbers": {
+			query:    `max(5, 10, [])`,
+			expected: 10.0,
+		},
+		"max with single element list": {
+			query:    `max([3.25], 5)`,
+			expected: 5.0,
+		},
+		"max with list containing expressions": {
+			query:    `max(10, [2+3, 5-1])`,
+			expected: 10.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -3463,6 +3534,61 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		},
 		"min with single argument and empty list": {
 			query:         `min(5, [])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"max with no arguments": {
+			query:         `max()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"max with one argument": {
+			query:         `max(1)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"max with string argument": {
+			query:         `max("hello", 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with string argument second": {
+			query:         `max(1, "world")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with boolean argument": {
+			query:         `max(true, 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+
+		"max with map argument": {
+			query:         `max({"a": 1}, 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with input string": {
+			query:         `max($, 1)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with input boolean": {
+			query:         `max($, 1)`,
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with mixed valid and invalid arguments": {
+			query:         `max(1, "invalid", 2)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with list containing non-numeric elements": {
+			query:         `max(1, [2, "hello", 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"max with list expansion resulting in single argument": {
+			query:         `max([5])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"max with empty list only": {
+			query:         `max([])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"max with single argument and empty list": {
+			query:         `max(5, [])`,
 			expectedError: runtime.ErrInvalidArgumentCount,
 		},
 	}

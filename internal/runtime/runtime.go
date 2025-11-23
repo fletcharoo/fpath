@@ -67,6 +67,7 @@ func init() {
 		"contains": evalContainsFunction,
 		"abs":      evalAbsFunction,
 		"min":      evalMinFunction,
+		"max":      evalMaxFunction,
 	}
 }
 
@@ -2354,6 +2355,59 @@ func evalMinFunction(args []parser.Expr, input any) (ret parser.Expr, err error)
 	}
 
 	return minValue, nil
+}
+
+// evalMaxFunction implements the max() built-in function.
+// Returns the largest value from two or more numeric arguments.
+// List arguments are expanded into their individual elements.
+func evalMaxFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	// Expand all arguments, flattening any lists into their elements
+	var allArgs []parser.Expr
+	for _, arg := range args {
+		evaluatedArg, err := Eval(arg, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate max() argument: %w", err)
+			return nil, err
+		}
+
+		if evaluatedArg.Type() == parser.ExprType_List {
+			// Expand list into individual elements
+			exprList, ok := evaluatedArg.(parser.ExprList)
+			if !ok {
+				return nil, fmt.Errorf("failed to assert expression as list")
+			}
+			allArgs = append(allArgs, exprList.Values...)
+		} else {
+			// Add non-list arguments as-is
+			allArgs = append(allArgs, evaluatedArg)
+		}
+	}
+
+	// Check that we have at least 2 arguments after expansion
+	if len(allArgs) < 2 {
+		err = fmt.Errorf("%w: max() expects at least 2 arguments, got %d", ErrInvalidArgumentCount, len(allArgs))
+		return
+	}
+
+	// Initialize with the first argument
+	maxValue, err := validateNumber(allArgs[0], "max")
+	if err != nil {
+		return
+	}
+
+	// Compare with remaining arguments
+	for i := 1; i < len(allArgs); i++ {
+		currentValue, err := validateNumber(allArgs[i], "max")
+		if err != nil {
+			return nil, err
+		}
+
+		if currentValue.Value.GreaterThan(maxValue.Value) {
+			maxValue = currentValue
+		}
+	}
+
+	return maxValue, nil
 }
 
 // evalAndValidateNumber evaluates an expression and validates it's a number.
