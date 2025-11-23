@@ -11,7 +11,7 @@ The language supports arithmetic operations, comparisons, logical operations, co
 - **Rich data type support**: Numbers, strings, booleans, lists, and maps
 - **Comprehensive operators**: Arithmetic, comparison, logical, and ternary operations
 - **Data access**: Indexing and slicing for lists, strings, and maps
-- **Built-in functions**: Mathematical and utility functions
+- **Built-in functions**: Mathematical, utility, and sorting functions
 - **String indexing**: Treat strings as lists of characters
 - **Error handling**: Clear error messages for invalid operations
 
@@ -120,6 +120,9 @@ Example: `5 > 3 ? "greater" : "less"` evalutes to `"greater"`
 | `round(number)` | Round to nearest integer | `round(3.7)` | `4` |
 | `floor(number)` | Round down to integer | `floor(3.7)` | `3` |
 | `ceil(number)` | Round up to integer | `ceil(3.2)` | `4` |
+| `sort(value)` | Sort lists and strings in ascending order | `sort([3, 1, 2])` | `[1, 2, 3]` |
+
+**Note**: For mixed-type lists, `sort()` uses type hierarchy: numbers < strings < booleans
 
 **Note**: In `filter()`, the underscore `_` represents the current item being evaluated.
 
@@ -248,6 +251,30 @@ result, _ := query.Evaluate(nil)
 query, _ := fpath.Compile("ceil(3.2)")
 result, _ := query.Evaluate(nil)
 // Result: 4
+```
+
+### Sorting Operations
+
+```go
+// Sort lists
+query, _ := fpath.Compile("sort([3, 1, 2])")
+result, _ := query.Evaluate(nil)
+// Result: [1, 2, 3]
+
+// Sort strings (character sorting)
+query, _ := fpath.Compile("sort(\"cba\")")
+result, _ := query.Evaluate(nil)
+// Result: "abc"
+
+// Sort mixed-type lists (numbers < strings < booleans)
+query, _ := fpath.Compile("sort([true, \"hello\", 42])")
+result, _ := query.Evaluate(nil)
+// Result: [42, "hello", true]
+
+// Sort with input data
+query, _ := fpath.Compile("sort($)")
+result, _ := query.Evaluate([3, 1, 2])
+// Result: [1, 2, 3]
 ```
 
 ### Error Handling

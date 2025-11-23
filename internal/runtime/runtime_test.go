@@ -609,15 +609,25 @@ func Test_Eval_Input(t *testing.T) {
 			resultDecoded, err := result.Decode()
 			require.NoError(t, err, "Failed to decode result")
 
-			// Normalize both expected and actual ExprMaps for deterministic comparison
-			if expectedMap, ok := tc.expected.(parser.ExprMap); ok {
-				if actualMap, ok := resultDecoded.(parser.ExprMap); ok {
-					require.Equal(t, normalizeExprMap(expectedMap), normalizeExprMap(actualMap), "Result does not match expected value")
-					return
-				}
-			}
+			// Handle both list and string results
+			switch expected := tc.expected.(type) {
+			case []any:
+				// For lists, decode each element and compare
+				resultList, ok := resultDecoded.(parser.ExprList)
+				require.True(t, ok, "Expected ExprList, got %T", resultDecoded)
+				require.Equal(t, len(expected), len(resultList.Values), "List length mismatch")
 
-			require.Equal(t, tc.expected, resultDecoded, "Result does not match expected value")
+				for i, expectedValue := range expected {
+					valueDecoded, err := resultList.Values[i].Decode()
+					require.NoError(t, err, "Failed to decode list element %d", i)
+					require.Equal(t, expectedValue, valueDecoded, "Element %d does not match expected value", i)
+				}
+			case string:
+				// For strings, compare directly
+				resultString, ok := resultDecoded.(string)
+				require.True(t, ok, "Expected string, got %T", resultDecoded)
+				require.Equal(t, expected, resultString, "String value does not match expected value")
+			}
 		})
 	}
 }
@@ -4421,6 +4431,179 @@ func Test_Eval_StringSlice(t *testing.T) {
 			require.True(t, ok, "Expected ExprString, got %T", resultDecoded)
 
 			require.Equal(t, tc.expected, resultString, "String value does not match expected value")
+		})
+	}
+}
+
+func Test_Eval_SortFunction(t *testing.T) {
+	testCases := map[string]struct {
+		query    string
+		input    any
+		expected any
+	}{
+		"sort number list": {
+			query:    "sort([3, 1, 2])",
+			expected: []any{1.0, 2.0, 3.0},
+		},
+		"sort string list": {
+			query:    `sort(["c", "a", "b"])`,
+			expected: []any{"a", "b", "c"},
+		},
+		"sort boolean list": {
+			query:    "sort([true, false])",
+			expected: []any{false, true},
+		},
+		"sort mixed type list": {
+			query:    "sort([1, \"a\", true])",
+			expected: []any{1.0, "a", true}, // numbers < strings < booleans
+		},
+		"sort empty list": {
+			query:    "sort([])",
+			expected: []any{},
+		},
+		"sort single element list": {
+			query:    "sort([5])",
+			expected: []any{5.0},
+		},
+		"sort duplicate elements": {
+			query:    "sort([2, 1, 2, 3, 1])",
+			expected: []any{1.0, 1.0, 2.0, 2.0, 3.0},
+		},
+		"sort string": {
+			query:    `sort("cba")`,
+			expected: "abc",
+		},
+		"sort empty string": {
+			query:    `sort("")`,
+			expected: "",
+		},
+		"sort single character string": {
+			query:    `sort("x")`,
+			expected: "x",
+		},
+		"sort string with special characters": {
+			query:    `sort("!@#")`,
+			expected: "!#@",
+		},
+		"sort string with unicode": {
+			query:    `sort("çâä")`,
+			expected: "âäç", // Unicode order
+		},
+		"sort with input data list": {
+			query:    "sort($)",
+			input:    []any{3, 1, 2},
+			expected: []any{1.0, 2.0, 3.0},
+		},
+		"sort with input data string": {
+			query:    "sort($)",
+			input:    "cba",
+			expected: "abc",
+		},
+		"sort complex mixed list": {
+			query:    "sort([true, \"hello\", 42, false, \"world\", 1])",
+			expected: []any{1.0, 42.0, "hello", "world", false, true},
+		},
+		"sort decimal numbers": {
+			query:    "sort([3, 1, 2])",
+			expected: []any{1.0, 2.0, 3.0},
+		},
+		"sort negative numbers": {
+			query:    "sort([-1, -3, -2])",
+			expected: []any{-3.0, -2.0, -1.0},
+		},
+		"sort mixed positive negative numbers": {
+			query:    "sort([1, -1, 2, -2])",
+			expected: []any{-2.0, -1.0, 1.0, 2.0},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			result, err := runtime.Eval(expr, tc.input)
+			require.NoError(t, err, "Unexpected runtime error")
+
+			resultDecoded, err := result.Decode()
+			require.NoError(t, err, "Failed to decode result")
+
+			// Handle both list and string results
+			switch expected := tc.expected.(type) {
+			case []any:
+				// For lists, decode each element and compare
+				resultList, ok := resultDecoded.(parser.ExprList)
+				require.True(t, ok, "Expected ExprList, got %T", resultDecoded)
+				require.Equal(t, len(expected), len(resultList.Values), "List length mismatch")
+
+				for i, expectedValue := range expected {
+					valueDecoded, err := resultList.Values[i].Decode()
+					require.NoError(t, err, "Failed to decode list element %d", i)
+					require.Equal(t, expectedValue, valueDecoded, "Element %d does not match expected value", i)
+				}
+			case string:
+				// For strings, compare directly
+				resultString, ok := resultDecoded.(string)
+				require.True(t, ok, "Expected string, got %T", resultDecoded)
+				require.Equal(t, expected, resultString, "String value does not match expected value")
+			}
+		})
+	}
+}
+
+func Test_Eval_SortFunction_Errors(t *testing.T) {
+	testCases := map[string]struct {
+		query         string
+		input         any
+		expectedError error
+	}{
+		"sort with no arguments": {
+			query:         "sort()",
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"sort with too many arguments": {
+			query:         `sort([1, 2, 3], "extra")`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"sort with number argument": {
+			query:         "sort(42)",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"sort with boolean argument": {
+			query:         "sort(true)",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"sort with map argument": {
+			query:         `sort({"a": 1})`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"sort with input number": {
+			query:         "sort($)",
+			input:         42,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"sort with input boolean": {
+			query:         "sort($)",
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"sort with input map": {
+			query:         "sort($)",
+			input:         map[string]any{"a": 1},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			lex := lexer.New(tc.query)
+			expr, err := parser.New(lex).Parse()
+			require.NoError(t, err, "Unexpected parser error")
+
+			_, err = runtime.Eval(expr, tc.input)
+			require.Error(t, err, "Expected runtime error")
+			require.ErrorIs(t, err, tc.expectedError, "Error should be of expected type")
 		})
 	}
 }

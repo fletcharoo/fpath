@@ -3,6 +3,7 @@ package runtime
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/fletcharoo/fpath/internal/parser"
@@ -71,6 +72,7 @@ func init() {
 		"round":    evalRoundFunction,
 		"floor":    evalFloorFunction,
 		"ceil":     evalCeilFunction,
+		"sort":     evalSortFunction,
 	}
 }
 
@@ -2607,6 +2609,150 @@ func validateNumber(argExpr parser.Expr, funcName string) (parser.ExprNumber, er
 	}
 
 	return exprNumber, nil
+}
+
+// evalSortFunction implements sort() built-in function.
+// Sorts lists and strings in ascending order.
+func evalSortFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 {
+		err = fmt.Errorf("%w: sort() expects exactly 1 argument, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate sort() argument: %w", err)
+		return
+	}
+
+	switch argExpr.Type() {
+	case parser.ExprType_List:
+		exprList, ok := argExpr.(parser.ExprList)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as list")
+			return
+		}
+
+		// Create a copy of the list to avoid modifying the original
+		sortedValues := make([]parser.Expr, len(exprList.Values))
+		copy(sortedValues, exprList.Values)
+
+		// Sort the list using our custom comparison function
+		sort.Slice(sortedValues, func(i, j int) bool {
+			return compareExpressions(sortedValues[i], sortedValues[j]) < 0
+		})
+
+		return parser.ExprList{Values: sortedValues}, nil
+
+	case parser.ExprType_String:
+		exprString, ok := argExpr.(parser.ExprString)
+		if !ok {
+			err = fmt.Errorf("failed to assert expression as string")
+			return
+		}
+
+		// Convert string to rune slice for proper sorting
+		runes := []rune(exprString.Value)
+		sort.Slice(runes, func(i, j int) bool {
+			return runes[i] < runes[j]
+		})
+
+		// Convert back to string
+		sortedString := string(runes)
+		return parser.ExprString{Value: sortedString}, nil
+
+	case parser.ExprType_Number:
+		err = fmt.Errorf("%w: sort() cannot be applied to numbers", ErrInvalidArgumentType)
+		return
+
+	case parser.ExprType_Boolean:
+		err = fmt.Errorf("%w: sort() cannot be applied to booleans", ErrInvalidArgumentType)
+		return
+
+	case parser.ExprType_Map:
+		err = fmt.Errorf("%w: sort() cannot be applied to maps", ErrInvalidArgumentType)
+		return
+
+	default:
+		err = fmt.Errorf("%w: sort() cannot be applied to type %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
+}
+
+// compareExpressions compares two expressions for sorting.
+// Returns -1 if a < b, 0 if a == b, 1 if a > b
+// Uses type hierarchy: numbers < strings < booleans
+func compareExpressions(a, b parser.Expr) int {
+	// If types are different, use type hierarchy
+	if a.Type() != b.Type() {
+		return compareTypes(a.Type(), b.Type())
+	}
+
+	// Same type - compare values
+	switch a.Type() {
+	case parser.ExprType_Number:
+		aNum, ok1 := a.(parser.ExprNumber)
+		bNum, ok2 := b.(parser.ExprNumber)
+		if !ok1 || !ok2 {
+			return 0
+		}
+		return aNum.Value.Cmp(bNum.Value)
+
+	case parser.ExprType_String:
+		aStr, ok1 := a.(parser.ExprString)
+		bStr, ok2 := b.(parser.ExprString)
+		if !ok1 || !ok2 {
+			return 0
+		}
+		if aStr.Value < bStr.Value {
+			return -1
+		} else if aStr.Value > bStr.Value {
+			return 1
+		}
+		return 0
+
+	case parser.ExprType_Boolean:
+		aBool, ok1 := a.(parser.ExprBoolean)
+		bBool, ok2 := b.(parser.ExprBoolean)
+		if !ok1 || !ok2 {
+			return 0
+		}
+		// false < true
+		if !aBool.Value && bBool.Value {
+			return -1
+		} else if aBool.Value && !bBool.Value {
+			return 1
+		}
+		return 0
+
+	default:
+		return 0
+	}
+}
+
+// compareTypes compares expression types for sorting.
+// Uses hierarchy: numbers < strings < booleans
+func compareTypes(typeA, typeB int) int {
+	typeOrder := map[int]int{
+		parser.ExprType_Number:  0,
+		parser.ExprType_String:  1,
+		parser.ExprType_Boolean: 2,
+	}
+
+	orderA, existsA := typeOrder[typeA]
+	orderB, existsB := typeOrder[typeB]
+
+	if !existsA || !existsB {
+		return 0
+	}
+
+	if orderA < orderB {
+		return -1
+	} else if orderA > orderB {
+		return 1
+	}
+	return 0
 }
 
 // convertInputToExpr converts input data to appropriate expression types.
