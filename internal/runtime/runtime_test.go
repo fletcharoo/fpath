@@ -3367,6 +3367,90 @@ func Test_Eval_ContainsFunction(t *testing.T) {
 			input:    map[string]any{"key1": "value1", "key2": "value2"},
 			expected: true,
 		},
+		"round with positive decimal less than .5": {
+			query:    `round(3.2)`,
+			expected: 3.0,
+		},
+		"round with positive decimal greater than .5": {
+			query:    `round(3.8)`,
+			expected: 4.0,
+		},
+		"round with positive decimal exactly .5": {
+			query:    `round(3.5)`,
+			expected: 4.0,
+		},
+		"round with negative decimal less than .5": {
+			query:    `round(-3.2)`,
+			expected: -3.0,
+		},
+		"round with negative decimal greater than .5": {
+			query:    `round(-3.8)`,
+			expected: -4.0,
+		},
+		"round with negative decimal exactly .5": {
+			query:    `round(-3.5)`,
+			expected: -3.0,
+		},
+		"round with zero": {
+			query:    `round(0)`,
+			expected: 0.0,
+		},
+		"round with positive integer": {
+			query:    `round(5.0)`,
+			expected: 5.0,
+		},
+		"round with negative integer": {
+			query:    `round(-5.0)`,
+			expected: -5.0,
+		},
+		"round with small positive decimal": {
+			query:    `round(0.1)`,
+			expected: 0.0,
+		},
+		"round with small negative decimal": {
+			query:    `round(-0.1)`,
+			expected: 0.0,
+		},
+		"round with expression": {
+			query:    `round(2.5 + 1.2)`,
+			expected: 4.0,
+		},
+		"round with complex expression": {
+			query:    `round((3.7 + 2.3) * 1.5)`,
+			expected: 9.0,
+		},
+		"round with input data": {
+			query:    `round($)`,
+			input:    2.7,
+			expected: 3.0,
+		},
+		"round with input negative": {
+			query:    `round($)`,
+			input:    -2.7,
+			expected: -3.0,
+		},
+		"round with input half": {
+			query:    `round($)`,
+			input:    2.5,
+			expected: 3.0,
+		},
+		"round with input negative half": {
+			query:    `round($)`,
+			input:    -2.5,
+			expected: -2.0,
+		},
+		"round with very small decimal": {
+			query:    `round(0.0001)`,
+			expected: 0.0,
+		},
+		"round with large number": {
+			query:    `round(123456789.5)`,
+			expected: 123456790.0,
+		},
+		"round with negative large number": {
+			query:    `round(-123456789.5)`,
+			expected: -123456789.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -3590,6 +3674,50 @@ func Test_Eval_Function_Errors(t *testing.T) {
 		"max with single argument and empty list": {
 			query:         `max(5, [])`,
 			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"round with no arguments": {
+			query:         `round()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"round with too many arguments": {
+			query:         `round(1.5, 2.5, 3.5)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"round with string argument": {
+			query:         `round("hello")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with boolean argument": {
+			query:         `round(true)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with list argument": {
+			query:         `round([1, 2, 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with map argument": {
+			query:         `round({"a": 1})`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with input string": {
+			query:         `round($)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with input boolean": {
+			query:         `round($)`,
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with input list": {
+			query:         `round($)`,
+			input:         []any{1, 2, 3},
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"round with input map": {
+			query:         `round($)`,
+			input:         map[string]any{"a": 1},
+			expectedError: runtime.ErrInvalidArgumentType,
 		},
 	}
 

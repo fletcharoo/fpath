@@ -68,6 +68,7 @@ func init() {
 		"abs":      evalAbsFunction,
 		"min":      evalMinFunction,
 		"max":      evalMaxFunction,
+		"round":    evalRoundFunction,
 	}
 }
 
@@ -2302,6 +2303,114 @@ func evalAbsFunction(args []parser.Expr, input any) (ret parser.Expr, err error)
 
 	// Return the absolute value using decimal's Abs method
 	return parser.ExprNumber{Value: exprNumber.Value.Abs()}, nil
+}
+
+// evalRoundFunction implements round() built-in function.
+// Rounds a number to the nearest integer using custom rounding that rounds toward zero
+// for negative half values (.5) and away from zero for positive half values when no
+// decimal places parameter is provided. If a second parameter is provided, it specifies
+// the number of decimal places to round to.
+func evalRoundFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	if len(args) != 1 && len(args) != 2 {
+		err = fmt.Errorf("%w: round() expects 1 or 2 arguments, got %d", ErrInvalidArgumentCount, len(args))
+		return
+	}
+
+	// Evaluate first argument
+	argExpr, err := Eval(args[0], input)
+	if err != nil {
+		err = fmt.Errorf("failed to evaluate round() first argument: %w", err)
+		return
+	}
+
+	// Check that first argument is a number
+	if argExpr.Type() != parser.ExprType_Number {
+		err = fmt.Errorf("%w: round() can only be applied to numbers, got %s", ErrInvalidArgumentType, argExpr.String())
+		return
+	}
+
+	// Process the number of decimal places to round to (0 by default)
+	decimalPlaces := int32(0)
+	if len(args) == 2 {
+		roundToExpr, err := Eval(args[1], input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate round() second argument: %w", err)
+			return nil, err
+		}
+
+		if roundToExpr.Type() != parser.ExprType_Number {
+			err = fmt.Errorf("%w: round() second argument must be a number, got %s", ErrInvalidArgumentType, roundToExpr.String())
+			return nil, err
+		}
+
+		roundToNumber, ok := roundToExpr.(parser.ExprNumber)
+		if !ok {
+			err = fmt.Errorf("%w: failed to assert roundToExpr as ExprNumber", ErrInvalidArgumentType)
+			return nil, err
+		}
+
+		roundToFloat, _ := roundToNumber.Value.Float64()
+
+		// Check that the decimal places value is a valid integer
+		if roundToNumber.Value.Truncate(0).Cmp(roundToNumber.Value) != 0 {
+			err = fmt.Errorf("%w: round() second argument must be an integer", ErrInvalidArgumentType)
+			return nil, err
+		}
+
+		// Check that decimal places is non-negative
+		if roundToFloat < 0 {
+			err = fmt.Errorf("%w: round() second argument must be non-negative", ErrInvalidArgumentType)
+			return nil, err
+		}
+
+		decimalPlaces = int32(roundToFloat)
+	}
+
+	exprNumber, ok := argExpr.(parser.ExprNumber)
+	if !ok {
+		err = fmt.Errorf("failed to assert expression as number")
+		return
+	}
+
+	// Get the original decimal value
+	inputValue := exprNumber.Value
+
+	// If decimal places is 0, apply the special rounding logic for .5 cases
+	if decimalPlaces == 0 {
+		// Extract the absolute value to check the fractional part
+		absValue := inputValue.Abs()
+		truncatedValue := absValue.Truncate(0) // Get integer part
+		fractionalPart := absValue.Sub(truncatedValue) // Get fractional part
+
+		// Define 0.5 as a decimal for comparison
+		half := decimal.NewFromFloat(0.5)
+
+		// Check if the fractional part is exactly 0.5 (within reasonable precision)
+		isAtHalf := fractionalPart.Sub(half).Abs().LessThan(decimal.NewFromFloat(1e-10))
+
+		if isAtHalf {
+			// Special handling for exactly .5 fractional part
+			if inputValue.LessThan(decimal.NewFromFloat(0)) {
+				// For negative numbers at .5, round toward zero (e.g., -2.5 -> -2)
+				absTruncated := absValue.Truncate(0)
+				if inputValue.LessThan(decimal.NewFromFloat(0)) {
+					return parser.ExprNumber{Value: absTruncated.Neg()}, nil
+				} else {
+					return parser.ExprNumber{Value: absTruncated}, nil
+				}
+			} else {
+				// For positive numbers at .5, round away from zero (e.g., 2.5 -> 3)
+				// Use the default decimal Round function which does half-up (away from zero for positive)
+				return parser.ExprNumber{Value: inputValue.Round(decimalPlaces)}, nil
+			}
+		} else {
+			// For non-.5 fractional parts, use normal rounding
+			return parser.ExprNumber{Value: inputValue.Round(decimalPlaces)}, nil
+		}
+	} else {
+		// For decimal places other than 0, use normal rounding
+		return parser.ExprNumber{Value: inputValue.Round(decimalPlaces)}, nil
+	}
 }
 
 // evalMinFunction implements the min() built-in function.
