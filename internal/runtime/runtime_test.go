@@ -3125,6 +3125,77 @@ func Test_Eval_Function(t *testing.T) {
 			input:    7.5,
 			expected: 7.5,
 		},
+		"min with two integers": {
+			query:    `min(1, 2)`,
+			expected: 1.0,
+		},
+		"min with three decimals": {
+			query:    `min(5.5, 3.25, 4.75)`,
+			expected: 3.25,
+		},
+		"min with negative numbers": {
+			query:    `min(-1, -5, 0)`,
+			expected: -5.0,
+		},
+		"min with mixed integer and decimal": {
+			query:    `min(1.25, 2)`,
+			expected: 1.25,
+		},
+		"min with expressions": {
+			query:    `min(2+3, 5-1)`,
+			expected: 4.0,
+		},
+		"min with input data": {
+			query:    `min($, 10)`,
+			input:    5,
+			expected: 5.0,
+		},
+		"min with input data smaller": {
+			query:    `min($, 10)`,
+			input:    3,
+			expected: 3.0,
+		},
+		"min with input data larger": {
+			query:    `min($, 10)`,
+			input:    15,
+			expected: 10.0,
+		},
+		"min with many arguments": {
+			query:    `min(10, 5, 8, 3, 12, 1, 7)`,
+			expected: 1.0,
+		},
+		"min with zero": {
+			query:    `min(0, 5, -2)`,
+			expected: -2.0,
+		},
+		"min with list expansion": {
+			query:    `min(1, 2, [3, 4, 5])`,
+			expected: 1.0,
+		},
+		"min with list expansion where list contains minimum": {
+			query:    `min(10, 15, [5, 20, 25])`,
+			expected: 5.0,
+		},
+		"min with multiple lists": {
+			query:    `min([1, 3], [2, 4])`,
+			expected: 1.0,
+		},
+		"min with list and mixed numbers": {
+			query:    `min(7.5, [3.25, 8.75], 5)`,
+			expected: 3.25,
+		},
+		"min with empty list and numbers": {
+			query:    `min(5, 10, [])`,
+			expected: 5.0,
+		},
+		"min with single element list": {
+			query:    `min([3.25], 5)`,
+			expected: 3.25,
+		},
+		"min with list containing expressions": {
+			query:    `min(10, [2+3, 5-1])`,
+			expected: 4.0,
+		},
 	}
 
 	for name, tc := range testCases {
@@ -3338,6 +3409,61 @@ func Test_Eval_Function_Errors(t *testing.T) {
 			query:         `abs($)`,
 			input:         true,
 			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with no arguments": {
+			query:         `min()`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"min with one argument": {
+			query:         `min(1)`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"min with string argument": {
+			query:         `min("hello", 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with string argument second": {
+			query:         `min(1, "world")`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with boolean argument": {
+			query:         `min(true, 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+
+		"min with map argument": {
+			query:         `min({"a": 1}, 1)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with input string": {
+			query:         `min($, 1)`,
+			input:         "hello",
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with input boolean": {
+			query:         `min($, 1)`,
+			input:         true,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with mixed valid and invalid arguments": {
+			query:         `min(1, "invalid", 2)`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with list containing non-numeric elements": {
+			query:         `min(1, [2, "hello", 3])`,
+			expectedError: runtime.ErrInvalidArgumentType,
+		},
+		"min with list expansion resulting in single argument": {
+			query:         `min([5])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"min with empty list only": {
+			query:         `min([])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
+		},
+		"min with single argument and empty list": {
+			query:         `min(5, [])`,
+			expectedError: runtime.ErrInvalidArgumentCount,
 		},
 	}
 

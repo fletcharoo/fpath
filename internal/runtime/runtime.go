@@ -66,6 +66,7 @@ func init() {
 		"filter":   evalFilterFunction,
 		"contains": evalContainsFunction,
 		"abs":      evalAbsFunction,
+		"min":      evalMinFunction,
 	}
 }
 
@@ -2300,6 +2301,85 @@ func evalAbsFunction(args []parser.Expr, input any) (ret parser.Expr, err error)
 
 	// Return the absolute value using decimal's Abs method
 	return parser.ExprNumber{Value: exprNumber.Value.Abs()}, nil
+}
+
+// evalMinFunction implements the min() built-in function.
+// Returns the smallest value from two or more numeric arguments.
+// List arguments are expanded into their individual elements.
+func evalMinFunction(args []parser.Expr, input any) (ret parser.Expr, err error) {
+	// Expand all arguments, flattening any lists into their elements
+	var allArgs []parser.Expr
+	for _, arg := range args {
+		evaluatedArg, err := Eval(arg, input)
+		if err != nil {
+			err = fmt.Errorf("failed to evaluate min() argument: %w", err)
+			return nil, err
+		}
+
+		if evaluatedArg.Type() == parser.ExprType_List {
+			// Expand list into individual elements
+			exprList, ok := evaluatedArg.(parser.ExprList)
+			if !ok {
+				return nil, fmt.Errorf("failed to assert expression as list")
+			}
+			allArgs = append(allArgs, exprList.Values...)
+		} else {
+			// Add non-list arguments as-is
+			allArgs = append(allArgs, evaluatedArg)
+		}
+	}
+
+	// Check that we have at least 2 arguments after expansion
+	if len(allArgs) < 2 {
+		err = fmt.Errorf("%w: min() expects at least 2 arguments, got %d", ErrInvalidArgumentCount, len(allArgs))
+		return
+	}
+
+	// Initialize with the first argument
+	minValue, err := validateNumber(allArgs[0], "min")
+	if err != nil {
+		return
+	}
+
+	// Compare with remaining arguments
+	for i := 1; i < len(allArgs); i++ {
+		currentValue, err := validateNumber(allArgs[i], "min")
+		if err != nil {
+			return nil, err
+		}
+
+		if currentValue.Value.LessThan(minValue.Value) {
+			minValue = currentValue
+		}
+	}
+
+	return minValue, nil
+}
+
+// evalAndValidateNumber evaluates an expression and validates it's a number.
+// This is a helper function shared by numeric functions.
+func evalAndValidateNumber(arg parser.Expr, input any, funcName string) (parser.ExprNumber, error) {
+	argExpr, err := Eval(arg, input)
+	if err != nil {
+		return parser.ExprNumber{}, fmt.Errorf("failed to evaluate %s() argument: %w", funcName, err)
+	}
+
+	return validateNumber(argExpr, funcName)
+}
+
+// validateNumber validates that an expression is a number and returns it as ExprNumber.
+// This helper function works with already-evaluated expressions.
+func validateNumber(argExpr parser.Expr, funcName string) (parser.ExprNumber, error) {
+	if argExpr.Type() != parser.ExprType_Number {
+		return parser.ExprNumber{}, fmt.Errorf("%w: %s() can only be applied to numbers, got %s", ErrInvalidArgumentType, funcName, argExpr.String())
+	}
+
+	exprNumber, ok := argExpr.(parser.ExprNumber)
+	if !ok {
+		return parser.ExprNumber{}, fmt.Errorf("failed to assert expression as number")
+	}
+
+	return exprNumber, nil
 }
 
 // convertInputToExpr converts input data to appropriate expression types.
